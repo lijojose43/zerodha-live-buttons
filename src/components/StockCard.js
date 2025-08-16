@@ -8,6 +8,9 @@ export default function StockCard({
   quantity = 1,
   finnhubApiKey,
   tickSize = 0.05,
+  // Optional: auto-calc quantity per stock using capital and leverage
+  capitalPerStock,
+  leverage = 5,
 }) {
   const wsRef = useRef(null);
   const [price, setPrice] = useState(null);
@@ -80,15 +83,17 @@ export default function StockCard({
   };
 
   const ltp = Number(price) || 0;
+  const autoQty = ltp > 0 && capitalPerStock ? Math.max(1, Math.floor((capitalPerStock * (leverage || 1)) / ltp)) : null;
+  const effectiveQty = autoQty || quantity || 1;
   const buyTarget = ltp ? roundToTick(ltp * 1.01) : 0;
   const buySL = ltp ? roundToTick(ltp * 0.995) : 0;
   const sellTarget = ltp ? roundToTick(ltp * 0.99) : 0;
   const sellSL = ltp ? roundToTick(ltp * 1.005) : 0;
 
-  const potentialBuyProfit = ltp ? (buyTarget - ltp) * quantity : 0;
-  const potentialBuyLoss = ltp ? (ltp - buySL) * quantity : 0;
-  const potentialSellProfit = ltp ? (ltp - sellTarget) * quantity : 0;
-  const potentialSellLoss = ltp ? (sellSL - ltp) * quantity : 0;
+  const potentialBuyProfit = ltp ? (buyTarget - ltp) * effectiveQty : 0;
+  const potentialBuyLoss = ltp ? (ltp - buySL) * effectiveQty : 0;
+  const potentialSellProfit = ltp ? (ltp - sellTarget) * effectiveQty : 0;
+  const potentialSellLoss = ltp ? (sellSL - ltp) * effectiveQty : 0;
 
   const openTradingView = () => {
     // Determine a TradingView symbol. Prefer provided exchange, else fallback to plain symbol.
@@ -174,7 +179,7 @@ export default function StockCard({
         <ZerodhaLivePriceButton
           symbol={symbol}
           action="BUY"
-          quantity={quantity}
+          quantity={effectiveQty}
           exchange={exchange}
           finnhubApiKey={finnhubApiKey}
           tickSize={tickSize}
@@ -184,7 +189,7 @@ export default function StockCard({
         <ZerodhaLivePriceButton
           symbol={symbol}
           action="SELL"
-          quantity={quantity}
+          quantity={effectiveQty}
           exchange={exchange}
           finnhubApiKey={finnhubApiKey}
           tickSize={tickSize}
@@ -192,6 +197,7 @@ export default function StockCard({
           className="justify-center"
         />
       </div>
+      <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">Qty: {effectiveQty}</div>
     </div>
   );
 }
