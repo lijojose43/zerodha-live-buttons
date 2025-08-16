@@ -17,6 +17,16 @@ export default function App() {
       typeof window !== "undefined" ? localStorage.getItem("leverage") : null;
     return v ? Number(v) : 5;
   });
+  const [targetPct, setTargetPct] = useState(() => {
+    const v =
+      typeof window !== "undefined" ? localStorage.getItem("targetPct") : null;
+    return v ? Number(v) : 1;
+  });
+  const [slPct, setSlPct] = useState(() => {
+    const v =
+      typeof window !== "undefined" ? localStorage.getItem("slPct") : null;
+    return v ? Number(v) : 0.5;
+  });
   const [theme, setTheme] = useState(() => {
     const saved =
       typeof window !== "undefined" ? localStorage.getItem("theme") : null;
@@ -47,6 +57,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("leverage", String(leverage || 1));
   }, [leverage]);
+  useEffect(() => {
+    localStorage.setItem("targetPct", String(targetPct || 0));
+  }, [targetPct]);
+  useEffect(() => {
+    localStorage.setItem("slPct", String(slPct || 0));
+  }, [slPct]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white p-6 space-y-4">
@@ -125,6 +141,8 @@ export default function App() {
             finnhubApiKey={FINNHUB_API_KEY}
             capitalPerStock={stocks.length ? capitalTotal / stocks.length : 0}
             leverage={leverage}
+            targetPct={targetPct}
+            slPct={slPct}
           />
         ))}
       </div>
@@ -199,6 +217,38 @@ export default function App() {
                   className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="e.g. 5"
                 />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm mb-1" htmlFor="targetPct">
+                    Target (%)
+                  </label>
+                  <input
+                    id="targetPct"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={targetPct}
+                    onChange={(e) => setTargetPct(Number(e.target.value))}
+                    className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="e.g. 1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1" htmlFor="slPct">
+                    Stop Loss (%)
+                  </label>
+                  <input
+                    id="slPct"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={slPct}
+                    onChange={(e) => setSlPct(Number(e.target.value))}
+                    className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="e.g. 0.5"
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button

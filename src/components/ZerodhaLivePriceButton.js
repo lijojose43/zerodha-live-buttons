@@ -13,6 +13,9 @@ export default function ZerodhaLivePriceButton({
   // Compact mode hides inline price and uses smaller paddings
   compact = false,
   className = "",
+  // User-configurable target and stop loss percentages
+  targetPct = 1,
+  slPct = 0.5,
 }) {
   const { ready, refreshButtons } = useZerodhaPublisher();
   const hiddenLinkRef = useRef(null);
@@ -176,8 +179,8 @@ export default function ZerodhaLivePriceButton({
       }
 
       if (txn === "BUY") {
-        const slTrigger = roundToTick(ltp * 0.995); // 0.5% below
-        const targetPrice = roundToTick(ltp * 1.01); // 1% above
+        const slTrigger = roundToTick(ltp * (1 - (slPct || 0) / 100)); // SL below
+        const targetPrice = roundToTick(ltp * (1 + (targetPct || 0) / 100)); // Target above
 
         // 1) BUY market entry
         window.kite.add({
@@ -202,8 +205,8 @@ export default function ZerodhaLivePriceButton({
           price: targetPrice,
         });
       } else if (txn === "SELL") {
-        const slTrigger = roundToTick(ltp * 1.005); // 0.5% above
-        const targetPrice = roundToTick(ltp * 0.99); // 1% below
+        const slTrigger = roundToTick(ltp * (1 + (slPct || 0) / 100)); // SL above
+        const targetPrice = roundToTick(ltp * (1 - (targetPct || 0) / 100)); // Target below
 
         // 1) SELL market entry
         window.kite.add({

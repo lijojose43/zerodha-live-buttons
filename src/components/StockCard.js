@@ -11,6 +11,8 @@ export default function StockCard({
   // Optional: auto-calc quantity per stock using capital and leverage
   capitalPerStock,
   leverage = 5,
+  targetPct = 1,
+  slPct = 0.5,
 }) {
   const wsRef = useRef(null);
   const [price, setPrice] = useState(null);
@@ -85,10 +87,10 @@ export default function StockCard({
   const ltp = Number(price) || 0;
   const autoQty = ltp > 0 && capitalPerStock ? Math.max(1, Math.floor((capitalPerStock * (leverage || 1)) / ltp)) : null;
   const effectiveQty = autoQty || quantity || 1;
-  const buyTarget = ltp ? roundToTick(ltp * 1.01) : 0;
-  const buySL = ltp ? roundToTick(ltp * 0.995) : 0;
-  const sellTarget = ltp ? roundToTick(ltp * 0.99) : 0;
-  const sellSL = ltp ? roundToTick(ltp * 1.005) : 0;
+  const buyTarget = ltp ? roundToTick(ltp * (1 + (targetPct || 0) / 100)) : 0;
+  const buySL = ltp ? roundToTick(ltp * (1 - (slPct || 0) / 100)) : 0;
+  const sellTarget = ltp ? roundToTick(ltp * (1 - (targetPct || 0) / 100)) : 0;
+  const sellSL = ltp ? roundToTick(ltp * (1 + (slPct || 0) / 100)) : 0;
 
   const potentialBuyProfit = ltp ? (buyTarget - ltp) * effectiveQty : 0;
   const potentialBuyLoss = ltp ? (ltp - buySL) * effectiveQty : 0;
@@ -183,6 +185,8 @@ export default function StockCard({
           exchange={exchange}
           finnhubApiKey={finnhubApiKey}
           tickSize={tickSize}
+          targetPct={targetPct}
+          slPct={slPct}
           compact
           className="justify-center"
         />
@@ -193,6 +197,8 @@ export default function StockCard({
           exchange={exchange}
           finnhubApiKey={finnhubApiKey}
           tickSize={tickSize}
+          targetPct={targetPct}
+          slPct={slPct}
           compact
           className="justify-center"
         />
