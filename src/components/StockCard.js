@@ -92,10 +92,43 @@ export default function StockCard({
   const sellTarget = ltp ? roundToTick(ltp * (1 - (targetPct || 0) / 100)) : 0;
   const sellSL = ltp ? roundToTick(ltp * (1 + (slPct || 0) / 100)) : 0;
 
-  const potentialBuyProfit = ltp ? (buyTarget - ltp) * effectiveQty : 0;
-  const potentialBuyLoss = ltp ? (ltp - buySL) * effectiveQty : 0;
-  const potentialSellProfit = ltp ? (ltp - sellTarget) * effectiveQty : 0;
-  const potentialSellLoss = ltp ? (sellSL - ltp) * effectiveQty : 0;
+  // Brokerage/charges calculation based on provided PHP logic
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const iRound = (n) => Math.round(n);
+  const getBrokerage = (buyPrice, sellPrice, qty) => {
+    if (!buyPrice || !sellPrice || !qty) return 0;
+    const buyTotal = buyPrice * qty;
+    const sellTotal = sellPrice * qty;
+    const turnover = (sellPrice + buyPrice) * qty;
+
+    let brokerageBuy = (buyTotal * 0.03) / 100;
+    let brokerageSell = (sellTotal * 0.03) / 100;
+    brokerageBuy = brokerageBuy < 20 ? brokerageBuy : 20;
+    brokerageSell = brokerageSell < 20 ? brokerageSell : 20;
+    const brokerage = brokerageBuy + brokerageSell;
+
+    const stt = iRound(sellTotal * 0.00025);
+    const sebiCharges = turnover * 0.000001;
+    const transactionCharges = round2(turnover * 0.0000325 + 0.000001 * turnover);
+    const gst = round2(0.18 * (brokerage + transactionCharges + sebiCharges));
+    const stampCharges = iRound(round2(buyTotal * 0.00003));
+    const totalCharges = round2(brokerage + stt + transactionCharges + gst + sebiCharges + stampCharges);
+    return totalCharges;
+  };
+
+  // Net Profit/Loss after charges
+  const potentialBuyProfit = ltp && buyTarget
+    ? (buyTarget - ltp) * effectiveQty - getBrokerage(ltp, buyTarget, effectiveQty)
+    : 0;
+  const potentialBuyLoss = ltp && buySL
+    ? (ltp - buySL) * effectiveQty + getBrokerage(ltp, buySL, effectiveQty)
+    : 0;
+  const potentialSellProfit = ltp && sellTarget
+    ? (ltp - sellTarget) * effectiveQty - getBrokerage(sellTarget, ltp, effectiveQty)
+    : 0;
+  const potentialSellLoss = ltp && sellSL
+    ? (sellSL - ltp) * effectiveQty + getBrokerage(sellSL, ltp, effectiveQty)
+    : 0;
 
   const openTradingView = () => {
     // Determine a TradingView symbol. Prefer provided exchange, else fallback to plain symbol.
