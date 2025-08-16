@@ -17,7 +17,9 @@ export default function StockCard({
     if (!finnhubApiKey || !symbol) return;
 
     if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
-      try { wsRef.current.close(); } catch {}
+      try {
+        wsRef.current.close();
+      } catch {}
     }
 
     const ws = new WebSocket(`wss://ws.finnhub.io?token=${finnhubApiKey}`);
@@ -27,7 +29,9 @@ export default function StockCard({
 
     ws.onopen = () => {
       try {
-        candidates.forEach((sym) => ws.send(JSON.stringify({ type: "subscribe", symbol: sym })));
+        candidates.forEach((sym) =>
+          ws.send(JSON.stringify({ type: "subscribe", symbol: sym }))
+        );
       } catch {}
     };
 
@@ -35,7 +39,9 @@ export default function StockCard({
       try {
         const payload = JSON.parse(event.data);
         if (payload.type === "trade" && Array.isArray(payload.data)) {
-          const trade = payload.data.find((t) => candidates.includes(t.s)) || payload.data[0];
+          const trade =
+            payload.data.find((t) => candidates.includes(t.s)) ||
+            payload.data[0];
           if (trade && typeof trade.p === "number") {
             const p = trade.p;
             setPrice(p);
@@ -62,7 +68,9 @@ export default function StockCard({
     })();
 
     return () => {
-      try { ws.close(); } catch {}
+      try {
+        ws.close();
+      } catch {}
     };
   }, [symbol, exchange, finnhubApiKey]);
 
@@ -82,31 +90,83 @@ export default function StockCard({
   const potentialSellProfit = ltp ? (ltp - sellTarget) * quantity : 0;
   const potentialSellLoss = ltp ? (sellSL - ltp) * quantity : 0;
 
+  const openTradingView = () => {
+    // Determine a TradingView symbol. Prefer provided exchange, else fallback to plain symbol.
+    const ex = (exchange || "").toUpperCase();
+    const tvExchange = ex || "NSE";
+    const candidates = [`${symbol}`, `${symbol}`];
+    const url = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(
+      candidates[0]
+    )}&interval=5`;
+    window.open(url, "_blank", "noopener");
+  };
+
   return (
-    <div className="rounded-xl bg-slate-900 text-white p-4 shadow-lg ring-1 ring-slate-800 w-full max-w-sm">
+    <div className="rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full max-w-sm">
       <div className="flex items-baseline justify-between">
         <div>
-          <h3 className="text-lg font-semibold tracking-wide">{symbol}</h3>
-          <p className="text-xs text-slate-400">{exchange}</p>
+          <button
+            type="button"
+            onClick={openTradingView}
+            className="text-left text-lg font-semibold tracking-wide hover:underline cursor-pointer"
+            title="Open 5m TradingView chart"
+          >
+            {symbol}
+          </button>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {exchange}
+          </p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-mono">{ltp ? `₹${ltp.toFixed(2)}` : "--"}</div>
-          <div className="text-[11px] text-slate-400">Live price</div>
+          <div className="text-2xl font-mono">
+            {ltp ? `₹${ltp.toFixed(2)}` : "--"}
+          </div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+            Live price
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
-        <div className="rounded-lg bg-slate-800 p-3">
-          <div className="flex justify-between"><span className="text-slate-400">Target</span><span className="font-mono">{buyTarget ? `₹${buyTarget.toFixed(2)}` : "--"}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">SL</span><span className="font-mono">{buySL ? `₹${buySL.toFixed(2)}` : "--"}</span></div>
-          <div className="mt-2 text-[12px] text-green-300">Potential +₹{potentialBuyProfit.toFixed(2)}</div>
-          <div className="text-[12px] text-red-300">Risk -₹{potentialBuyLoss.toFixed(2)}</div>
+        <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
+          <div className="flex justify-between">
+            <span className="text-slate-600 dark:text-slate-400">Target</span>
+            <span className="font-mono">
+              {buyTarget ? `₹${buyTarget.toFixed(2)}` : "--"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-600 dark:text-slate-400">SL</span>
+            <span className="font-mono">
+              {buySL ? `₹${buySL.toFixed(2)}` : "--"}
+            </span>
+          </div>
+          <div className="mt-2 text-[12px] text-green-600 dark:text-green-300">
+            Potential +₹{potentialBuyProfit.toFixed(2)}
+          </div>
+          <div className="text-[12px] text-red-600 dark:text-red-300">
+            Risk -₹{potentialBuyLoss.toFixed(2)}
+          </div>
         </div>
-        <div className="rounded-lg bg-slate-800 p-3">
-          <div className="flex justify-between"><span className="text-slate-400">Target</span><span className="font-mono">{sellTarget ? `₹${sellTarget.toFixed(2)}` : "--"}</span></div>
-          <div className="flex justify-between"><span className="text-slate-400">SL</span><span className="font-mono">{sellSL ? `₹${sellSL.toFixed(2)}` : "--"}</span></div>
-          <div className="mt-2 text-[12px] text-green-300">Potential +₹{potentialSellProfit.toFixed(2)}</div>
-          <div className="text-[12px] text-red-300">Risk -₹{potentialSellLoss.toFixed(2)}</div>
+        <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
+          <div className="flex justify-between">
+            <span className="text-slate-600 dark:text-slate-400">Target</span>
+            <span className="font-mono">
+              {sellTarget ? `₹${sellTarget.toFixed(2)}` : "--"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-600 dark:text-slate-400">SL</span>
+            <span className="font-mono">
+              {sellSL ? `₹${sellSL.toFixed(2)}` : "--"}
+            </span>
+          </div>
+          <div className="mt-2 text-[12px] text-green-600 dark:text-green-300">
+            Potential +₹{potentialSellProfit.toFixed(2)}
+          </div>
+          <div className="text-[12px] text-red-600 dark:text-red-300">
+            Risk -₹{potentialSellLoss.toFixed(2)}
+          </div>
         </div>
       </div>
 
