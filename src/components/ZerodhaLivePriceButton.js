@@ -10,6 +10,9 @@ export default function ZerodhaLivePriceButton({
   finnhubApiKey,
   // Optional: exchange tick size for rounding prices (most NSE eq are 0.05)
   tickSize = 0.05,
+  // Compact mode hides inline price and uses smaller paddings
+  compact = false,
+  className = "",
 }) {
   const { ready, refreshButtons } = useZerodhaPublisher();
   const hiddenLinkRef = useRef(null);
@@ -264,8 +267,7 @@ export default function ZerodhaLivePriceButton({
 
       <button
         onClick={handleClick}
-        className={`px-4 py-2 rounded-lg font-semibold shadow-md transition-all flex flex-col items-center
-        ${
+        className={`${className} ${compact ? "px-3 py-1.5 text-sm" : "px-4 py-2"} rounded-lg font-semibold shadow-md transition-all flex flex-col items-center ${
           action.toUpperCase() === "BUY"
             ? "bg-green-500 hover:bg-green-600 text-white"
             : "bg-red-500 hover:bg-red-600 text-white"
@@ -274,9 +276,11 @@ export default function ZerodhaLivePriceButton({
         <span>
           {action} {symbol}
         </span>
-        <span className="text-sm font-mono text-white">
-          {price ? `₹${price}` : "Loading..."}
-        </span>
+        {!compact && (
+          <span className="text-sm font-mono text-white">
+            {price ? `₹${price}` : "Loading..."}
+          </span>
+        )}
       </button>
     </div>
   );
