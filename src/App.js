@@ -3,7 +3,16 @@ import StockCard from "./components/StockCard";
 
 export default function App() {
   const FINNHUB_API_KEY = "d2dgmohr01qjem5knv90d2dgmohr01qjem5knv9g";
-  const stocks = ["AAPL"]; // Add or remove symbols here
+  const [stocks, setStocks] = useState(() => {
+    const v =
+      typeof window !== "undefined" ? localStorage.getItem("stocks") : null;
+    try {
+      return v ? JSON.parse(v) : ["AAPL"];
+    } catch {
+      return ["AAPL"];
+    }
+  });
+  const [newStock, setNewStock] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [capitalTotal, setCapitalTotal] = useState(() => {
     const v =
@@ -50,6 +59,17 @@ export default function App() {
   const openSettings = () => setShowSettings(true);
   const closeSettings = () => setShowSettings(false);
 
+  const addStock = (raw) => {
+    if (!raw) return;
+    const sym = String(raw).toUpperCase().trim();
+    if (!sym) return;
+    setStocks((prev) => Array.from(new Set([...(prev || []), sym])));
+    setNewStock("");
+  };
+  const removeStock = (sym) => {
+    setStocks((prev) => (prev || []).filter((s) => s !== sym));
+  };
+
   useEffect(() => {
     localStorage.setItem("capitalTotal", String(capitalTotal || 0));
   }, [capitalTotal]);
@@ -63,6 +83,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("slPct", String(slPct || 0));
   }, [slPct]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("stocks", JSON.stringify(stocks || []));
+    } catch {}
+  }, [stocks]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white p-6 space-y-4">
@@ -182,6 +208,49 @@ export default function App() {
               }}
               className="space-y-4"
             >
+              <div>
+                <label className="block text-sm mb-1">Stocks</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {stocks.map((sym) => (
+                    <span
+                      key={sym}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-700 text-sm"
+                    >
+                      {sym}
+                      <button
+                        type="button"
+                        onClick={() => removeStock(sym)}
+                        className="ml-1 text-slate-500 hover:text-red-600"
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newStock}
+                    onChange={(e) => setNewStock(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addStock(newStock);
+                      }
+                    }}
+                    placeholder="Add symbol e.g. AAPL"
+                    className="flex-1 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addStock(newStock)}
+                    className="rounded-md px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
               <div>
                 <label className="block text-sm mb-1" htmlFor="capital">
                   Capital (total)
