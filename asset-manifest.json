@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/zerodha-live-buttons/static/css/main.c2617aeb.css",
+    "main.js": "/zerodha-live-buttons/static/js/main.60b1d478.js",
+    "index.html": "/zerodha-live-buttons/index.html",
+    "main.c2617aeb.css.map": "/zerodha-live-buttons/static/css/main.c2617aeb.css.map",
+    "main.60b1d478.js.map": "/zerodha-live-buttons/static/js/main.60b1d478.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.c2617aeb.css",
+    "static/js/main.60b1d478.js"
+  ]
+}
