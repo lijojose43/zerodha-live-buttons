@@ -99,19 +99,33 @@ export default function StockCard({
     if (!buyPrice || !sellPrice || !qty) return 0;
     const buyTotal = buyPrice * qty;
     const sellTotal = sellPrice * qty;
-    const turnover = (sellPrice + buyPrice) * qty;
+    const turnover = round2((sellPrice + buyPrice) * qty);
 
     let brokerageBuy = (buyTotal * 0.03) / 100;
     let brokerageSell = (sellTotal * 0.03) / 100;
     brokerageBuy = brokerageBuy < 20 ? brokerageBuy : 20;
     brokerageSell = brokerageSell < 20 ? brokerageSell : 20;
-    const brokerage = brokerageBuy + brokerageSell;
+    const brokerage = round2(brokerageBuy + brokerageSell);
 
-    const stt = iRound(sellTotal * 0.00025);
-    const sebiCharges = turnover * 0.000001;
-    const transactionCharges = round2(turnover * 0.0000325 + 0.000001 * turnover);
+    // STT based on average price of buy and sell
+    let stt = iRound(round2((((buyPrice + sellPrice) / 2) * qty) * 0.00025));
+    if (buyPrice === 0 && sellPrice === 0) stt = 0;
+
+    // SEBI charges
+    const sebiCharges = round2(turnover * 0.000001);
+
+    // Exchange transaction charges and NSE IPFT
+    const isNSE = (exchange || "").toUpperCase() === "NSE";
+    const baseEtc = isNSE ? turnover * 0.0000297 : turnover * 0.0000375;
+    const nseIpft = isNSE ? turnover * 0.000001 : 0;
+    const transactionCharges = round2(baseEtc + nseIpft);
+
+    // GST on brokerage + etc + sebi
     const gst = round2(0.18 * (brokerage + transactionCharges + sebiCharges));
+
+    // Stamp duty on buy side
     const stampCharges = iRound(round2(buyTotal * 0.00003));
+
     const totalCharges = round2(brokerage + stt + transactionCharges + gst + sebiCharges + stampCharges);
     return totalCharges;
   };
