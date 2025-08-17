@@ -1,0 +1,51 @@
+# Node and React build artifacts
+node_modules/
+build/
+dist/
+.cache/
+.tmp/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.jest/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Misc
+*.local
+*.pid
+*.seed
+*.log
+*.tgz
+
+# Parcel/Next/etc. (general safety)
+.next/
+out/
+.vercel/
+
+# Storybook
+.storybook-out/
+
+# Netlify/Vercel cache
+.netlify/
+
+# Lockfiles (ignore alternative managers if not in use)
+yarn.lock
+pnpm-lock.yaml
