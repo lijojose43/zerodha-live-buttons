@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from "react";
-import axios from "axios";
+import { useEffect, useMemo, useState } from "react";
 import ZerodhaLivePriceButton from "./ZerodhaLivePriceButton";
 
 export default function StockCard({
+  // UI display symbol (trading symbol)
   symbol,
+  // Upstox instrument key used for API; if not provided, fallback to `symbol`
+  instrumentKey: instrumentKeyProp,
   exchange = "NSE",
   quantity = 1,
-  finnhubApiKey,
   tickSize = 0.05,
   // Optional: auto-calc quantity per stock using capital and leverage
   capitalPerStock,
@@ -14,78 +15,100 @@ export default function StockCard({
   targetPct = 1,
   slPct = 0.5,
 }) {
-  const wsRef = useRef(null);
-  const [price, setPrice] = useState(null);
-  const [lastPrice, setLastPrice] = useState(null);
-
-  useEffect(() => {
-    if (!finnhubApiKey || !symbol) return;
-
-    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
-      try {
-        wsRef.current.close();
-      } catch {}
-    }
-
-    const ws = new WebSocket(`wss://ws.finnhub.io?token=${finnhubApiKey}`);
-    wsRef.current = ws;
-    const ex = (exchange || "").toUpperCase();
-    const candidates = Array.from(new Set([`${ex}:${symbol}`, `${symbol}`]));
-
-    ws.onopen = () => {
-      try {
-        candidates.forEach((sym) =>
-          ws.send(JSON.stringify({ type: "subscribe", symbol: sym }))
-        );
-      } catch {}
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === "trade" && Array.isArray(payload.data)) {
-          const trade =
-            payload.data.find((t) => candidates.includes(t.s)) ||
-            payload.data[0];
-          if (trade && typeof trade.p === "number") {
-            const p = trade.p;
-            setPrice(p);
-            setLastPrice(p);
-          }
-        }
-      } catch {}
-    };
-
-    (async () => {
-      for (const sym of candidates) {
-        try {
-          const res = await axios.get("https://finnhub.io/api/v1/quote", {
-            params: { symbol: sym, token: finnhubApiKey },
-          });
-          const p = res?.data?.c;
-          if (typeof p === "number" && p > 0) {
-            setPrice(p);
-            setLastPrice(p);
-            break;
-          }
-        } catch {}
-      }
-    })();
-
-    return () => {
-      try {
-        ws.close();
-      } catch {}
-    };
-  }, [symbol, exchange, finnhubApiKey]);
-
+  const [ltp, setLtp] = useState(0);
+  const [ltpStatus, setLtpStatus] = useState("idle"); // idle | ok | error | unauth
   const roundToTick = (p) => {
     if (!tickSize || tickSize <= 0) return Number(p.toFixed(2));
     return Math.round(p / tickSize) * tickSize;
   };
 
-  const ltp = Number(price) || 0;
-  const autoQty = ltp > 0 && capitalPerStock ? Math.max(1, Math.floor((capitalPerStock * (leverage || 1)) / ltp)) : null;
+  // Upstox instrument_key used for API requests. Prefer explicit prop; fallback to `symbol`.
+  // Supports forms like 'NSE_EQ|RELIANCE' or 'NSE_EQ:RELIANCE'.
+  const instrumentKey = useMemo(() => {
+    const base = instrumentKeyProp ?? symbol;
+    return String(base || "").toUpperCase().trim();
+  }, [instrumentKeyProp, symbol]);
+
+  // Derive a trading symbol for Zerodha Publisher buttons from the instrument_key
+  // Take the part after '|' or ':' if present, else the whole string
+  const tradingSymbol = useMemo(() => {
+    const raw = String(instrumentKey || symbol || "").trim();
+    const afterPipe = raw.includes("|") ? raw.split("|").pop() : raw;
+    const afterColon = afterPipe.includes(":") ? afterPipe.split(":").pop() : afterPipe;
+    return String(afterColon || "").toUpperCase();
+  }, [instrumentKey, symbol]);
+
+  useEffect(() => {
+    let timer;
+    let stopped = false;
+    const pollMs = 2500;
+
+    const fetchLtp = async () => {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("upstoxToken")
+          : "";
+      if (!token) {
+        setLtpStatus("unauth");
+        return;
+      }
+      try {
+        setLtpStatus((s) => (s === "ok" ? s : "idle"));
+        const url = `https://api.upstox.com/v2/market-quote/ltp?instrument_key=${encodeURIComponent(
+          instrumentKey
+        )}`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          setLtpStatus("error");
+          return;
+        }
+        const json = await res.json();
+        // Support both '|' and ':' in response keys and also match nested instrument_token.
+        // Example: request 'NSE_EQ|INE002A01018' but response key is 'NSE_EQ:RELIANCE' with instrument_token 'NSE_EQ|INE002A01018'.
+        const pipeKey = instrumentKey.includes(":") ? instrumentKey.replace(":", "|") : instrumentKey;
+        const colonKey = instrumentKey.includes("|") ? instrumentKey.replace("|", ":") : instrumentKey;
+        const dataObj = json?.data || {};
+        let last = (dataObj[pipeKey]?.last_price ?? dataObj[colonKey]?.last_price);
+        if (typeof last !== "number") {
+          for (const [k, v] of Object.entries(dataObj)) {
+            const tok = v && v.instrument_token;
+            if (tok === pipeKey || tok === colonKey) {
+              last = v.last_price;
+              break;
+            }
+          }
+        }
+        if (typeof last === "number" && !Number.isNaN(last)) {
+          setLtp(last);
+          setLtpStatus("ok");
+        } else {
+          setLtpStatus("error");
+        }
+      } catch (e) {
+        // Likely CORS/network error if running purely client-side
+        setLtpStatus("error");
+      }
+    };
+
+    const loop = async () => {
+      await fetchLtp();
+      if (!stopped) timer = setTimeout(loop, pollMs);
+    };
+    loop();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [instrumentKey]);
+  const autoQty = useMemo(
+    () =>
+      ltp > 0 && capitalPerStock
+        ? Math.max(1, Math.floor((capitalPerStock * (leverage || 1)) / ltp))
+        : null,
+    [ltp, capitalPerStock, leverage]
+  );
   const effectiveQty = autoQty || quantity || 1;
   const buyTarget = ltp ? roundToTick(ltp * (1 + (targetPct || 0) / 100)) : 0;
   const buySL = ltp ? roundToTick(ltp * (1 - (slPct || 0) / 100)) : 0;
@@ -108,7 +131,7 @@ export default function StockCard({
     const brokerage = round2(brokerageBuy + brokerageSell);
 
     // STT based on average price of buy and sell
-    let stt = iRound(round2((((buyPrice + sellPrice) / 2) * qty) * 0.00025));
+    let stt = iRound(round2(((buyPrice + sellPrice) / 2) * qty * 0.00025));
     if (buyPrice === 0 && sellPrice === 0) stt = 0;
 
     // SEBI charges
@@ -126,23 +149,31 @@ export default function StockCard({
     // Stamp duty on buy side
     const stampCharges = iRound(round2(buyTotal * 0.00003));
 
-    const totalCharges = round2(brokerage + stt + transactionCharges + gst + sebiCharges + stampCharges);
+    const totalCharges = round2(
+      brokerage + stt + transactionCharges + gst + sebiCharges + stampCharges
+    );
     return totalCharges;
   };
 
   // Net Profit/Loss after charges
-  const potentialBuyProfit = ltp && buyTarget
-    ? (buyTarget - ltp) * effectiveQty - getBrokerage(ltp, buyTarget, effectiveQty)
-    : 0;
-  const potentialBuyLoss = ltp && buySL
-    ? (ltp - buySL) * effectiveQty + getBrokerage(ltp, buySL, effectiveQty)
-    : 0;
-  const potentialSellProfit = ltp && sellTarget
-    ? (ltp - sellTarget) * effectiveQty - getBrokerage(sellTarget, ltp, effectiveQty)
-    : 0;
-  const potentialSellLoss = ltp && sellSL
-    ? (sellSL - ltp) * effectiveQty + getBrokerage(sellSL, ltp, effectiveQty)
-    : 0;
+  const potentialBuyProfit =
+    ltp && buyTarget
+      ? (buyTarget - ltp) * effectiveQty -
+        getBrokerage(ltp, buyTarget, effectiveQty)
+      : 0;
+  const potentialBuyLoss =
+    ltp && buySL
+      ? (ltp - buySL) * effectiveQty + getBrokerage(ltp, buySL, effectiveQty)
+      : 0;
+  const potentialSellProfit =
+    ltp && sellTarget
+      ? (ltp - sellTarget) * effectiveQty -
+        getBrokerage(sellTarget, ltp, effectiveQty)
+      : 0;
+  const potentialSellLoss =
+    ltp && sellSL
+      ? (sellSL - ltp) * effectiveQty + getBrokerage(sellSL, ltp, effectiveQty)
+      : 0;
 
   const openTradingView = () => {
     // Determine a TradingView symbol. Prefer provided exchange, else fallback to plain symbol.
@@ -176,7 +207,10 @@ export default function StockCard({
             {ltp ? `₹${ltp.toFixed(2)}` : "--"}
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400">
-            Live price
+            {ltpStatus === "ok" && "Live price"}
+            {ltpStatus === "idle" && "Loading..."}
+            {ltpStatus === "unauth" && "Set Upstox token in Settings"}
+            {ltpStatus === "error" && "Error fetching LTP"}
           </div>
         </div>
       </div>
@@ -230,8 +264,8 @@ export default function StockCard({
           action="BUY"
           quantity={effectiveQty}
           exchange={exchange}
-          finnhubApiKey={finnhubApiKey}
           tickSize={tickSize}
+          currentPrice={ltp}
           targetPct={targetPct}
           slPct={slPct}
           compact
@@ -242,15 +276,17 @@ export default function StockCard({
           action="SELL"
           quantity={effectiveQty}
           exchange={exchange}
-          finnhubApiKey={finnhubApiKey}
           tickSize={tickSize}
+          currentPrice={ltp}
           targetPct={targetPct}
           slPct={slPct}
           compact
           className="justify-center"
         />
       </div>
-      <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">Qty: {effectiveQty}</div>
+      <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+        Qty: {effectiveQty}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { useRef, useEffect, useState } from "react";
-import axios from "axios";
 import useZerodhaPublisher from "../hooks/useZerodhaPublisher";
 
 export default function ZerodhaLivePriceButton({
@@ -7,7 +6,6 @@ export default function ZerodhaLivePriceButton({
   action = "BUY",
   quantity = 1,
   exchange = "NSE",
-  finnhubApiKey,
   // Optional: exchange tick size for rounding prices (most NSE eq are 0.05)
   tickSize = 0.05,
   // Compact mode hides inline price and uses smaller paddings
@@ -16,6 +14,8 @@ export default function ZerodhaLivePriceButton({
   // User-configurable target and stop loss percentages
   targetPct = 1,
   slPct = 0.5,
+  // Live price from parent (StockCard)
+  currentPrice = null,
 }) {
   const { ready, refreshButtons } = useZerodhaPublisher();
   const hiddenLinkRef = useRef(null);
@@ -31,114 +31,13 @@ export default function ZerodhaLivePriceButton({
     }
   }, [ready, symbol, action, quantity, exchange]);
 
+  // Use currentPrice from parent for display and calculations
   useEffect(() => {
-    if (!finnhubApiKey || !symbol) return;
-
-    // Close any existing socket before creating a new one
-    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
-      try {
-        wsRef.current.close();
-      } catch {}
+    if (typeof currentPrice === "number" && isFinite(currentPrice)) {
+      setLastPrice(currentPrice);
+      setPrice(currentPrice);
     }
-
-    const ws = new WebSocket(`wss://ws.finnhub.io?token=${finnhubApiKey}`);
-    wsRef.current = ws;
-    const ex = (exchange || "").toUpperCase();
-    // Try multiple symbol formats to maximize chance of data
-    const candidates = Array.from(
-      new Set([
-        `${ex}:${symbol}`,
-        `${symbol}`,
-        `${symbol}`,
-        `${symbol}`,
-        `${symbol}`,
-        `${symbol}`,
-      ])
-    );
-    const subscribed = new Set();
-    activeSymbolRef.current = null;
-
-    ws.onopen = () => {
-      try {
-        candidates.forEach((sym) => {
-          ws.send(JSON.stringify({ type: "subscribe", symbol: sym }));
-          subscribed.add(sym);
-        });
-      } catch (e) {
-        console.error("Finnhub WS subscribe error:", e);
-      }
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === "trade" && Array.isArray(payload.data)) {
-          // Find the first trade that matches any of our candidates
-          const trade =
-            payload.data.find((t) => candidates.includes(t.s)) ||
-            payload.data[0];
-          if (trade && typeof trade.p === "number") {
-            if (!activeSymbolRef.current && trade.s) {
-              activeSymbolRef.current = trade.s;
-              // Unsubscribe from other candidates to reduce noise
-              try {
-                subscribed.forEach((sym) => {
-                  if (sym !== trade.s && ws.readyState === WebSocket.OPEN) {
-                    ws.send(
-                      JSON.stringify({ type: "unsubscribe", symbol: sym })
-                    );
-                  }
-                });
-              } catch {}
-            }
-            const newPrice = trade.p;
-            setPrice(newPrice);
-            setLastPrice(newPrice);
-          }
-        }
-      } catch (e) {
-        console.error("Finnhub WS message parse error:", e);
-      }
-    };
-
-    ws.onerror = (e) => {
-      console.error("Finnhub WS error:", e);
-    };
-
-    // One-time REST fetch for an immediate price display using candidates
-    (async () => {
-      for (const sym of candidates) {
-        try {
-          const res = await axios.get("https://finnhub.io/api/v1/quote", {
-            params: { symbol: sym, token: finnhubApiKey },
-          });
-          const p = res?.data?.c;
-          if (typeof p === "number" && p > 0) {
-            setPrice(p);
-            setLastPrice(p);
-            break;
-          }
-        } catch (err) {
-          // try next candidate
-        }
-      }
-    })();
-
-    return () => {
-      try {
-        if (ws.readyState === WebSocket.OPEN) {
-          subscribed.forEach((sym) => {
-            try {
-              ws.send(JSON.stringify({ type: "unsubscribe", symbol: sym }));
-            } catch {}
-          });
-        }
-      } catch {}
-      try {
-        ws.close();
-      } catch {}
-    };
-  }, [symbol, exchange, finnhubApiKey]);
+  }, [currentPrice]);
 
   // Round a price to the nearest valid tick
   const roundToTick = (p) => {
@@ -281,7 +180,7 @@ export default function ZerodhaLivePriceButton({
         </span>
         {!compact && (
           <span className="text-sm font-mono text-white">
-            {price ? `₹${price}` : "Loading..."}
+            {typeof price === "number" ? `₹${price.toFixed(2)}` : "Loading..."}
           </span>
         )}
       </button>
