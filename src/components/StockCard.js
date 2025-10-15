@@ -16,7 +16,7 @@ export default function StockCard({
   slPct = 0.5,
 }) {
   const [ltp, setLtp] = useState(0);
-  const [ltpStatus, setLtpStatus] = useState("idle"); // idle | ok | error | unauth
+  const [ltpStatus, setLtpStatus] = useState("manual"); // manual | ok | error
   const roundToTick = (p) => {
     if (!tickSize || tickSize <= 0) return Number(p.toFixed(2));
     return Math.round(p / tickSize) * tickSize;
@@ -38,76 +38,28 @@ export default function StockCard({
     return String(afterColon || "").toUpperCase();
   }, [instrumentKey, symbol]);
 
+  // Live price fetching is disabled (Upstox removed). Manual entry enabled.
+  // Load saved LTP from localStorage on instrument change
   useEffect(() => {
-    let timer;
-    let stopped = false;
-    const pollMs = 2500;
-
-    const fetchLtp = async () => {
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("upstoxToken")
-          : "";
-      if (!token) {
-        setLtpStatus("unauth");
-        return;
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem(`ltp:${instrumentKey}`);
+      const n = saved ? Number(saved) : 0;
+      if (Number.isFinite(n) && n > 0) {
+        setLtp(n);
+      } else {
+        setLtp(0);
       }
-      try {
-        setLtpStatus((s) => (s === "ok" ? s : "idle"));
-        const url = `https://api.upstox.com/v2/market-quote/ltp?instrument_key=${encodeURIComponent(
-          instrumentKey
-        )}`;
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          setLtpStatus("error");
-          return;
-        }
-        const json = await res.json();
-        // Support both '|' and ':' in response keys and also match nested instrument_token.
-        // Example: request 'NSE_EQ|INE002A01018' but response key is 'NSE_EQ:RELIANCE' with instrument_token 'NSE_EQ|INE002A01018'.
-        const pipeKey = instrumentKey.includes(":") ? instrumentKey.replace(":", "|") : instrumentKey;
-        const colonKey = instrumentKey.includes("|") ? instrumentKey.replace("|", ":") : instrumentKey;
-        const dataObj = json?.data || {};
-        let last = (dataObj[pipeKey]?.last_price ?? dataObj[colonKey]?.last_price);
-        if (typeof last !== "number") {
-          for (const [k, v] of Object.entries(dataObj)) {
-            const tok = v && v.instrument_token;
-            if (tok === pipeKey || tok === colonKey) {
-              last = v.last_price;
-              break;
-            }
-          }
-        }
-        if (typeof last === "number" && !Number.isNaN(last)) {
-          setLtp(last);
-          setLtpStatus("ok");
-        } else {
-          setLtpStatus("error");
-        }
-      } catch (e) {
-        // Likely CORS/network error if running purely client-side
-        setLtpStatus("error");
-      }
-    };
-
-    const loop = async () => {
-      await fetchLtp();
-      if (!stopped) timer = setTimeout(loop, pollMs);
-    };
-    loop();
-    return () => {
-      stopped = true;
-      if (timer) clearTimeout(timer);
-    };
+    }
+    setLtpStatus("manual");
   }, [instrumentKey]);
+
+  // Persist LTP on blur of input instead of every change
   const autoQty = useMemo(
     () =>
       ltp > 0 && capitalPerStock
-        ? Math.max(1, Math.floor((capitalPerStock * (leverage || 1)) / ltp))
+        ? Math.max(1, Math.floor(capitalPerStock / ltp))
         : null,
-    [ltp, capitalPerStock, leverage]
+    [ltp, capitalPerStock]
   );
   const effectiveQty = autoQty || quantity || 1;
   const buyTarget = ltp ? roundToTick(ltp * (1 + (targetPct || 0) / 100)) : 0;
@@ -203,13 +155,37 @@ export default function StockCard({
           </p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-mono">
-            {ltp ? `₹${ltp.toFixed(2)}` : "--"}
-          </div>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={Number.isFinite(ltp) && ltp > 0 ? ltp : ''}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              setLtp(Number.isFinite(val) ? val : 0);
+              setLtpStatus("manual");
+            }}
+            onBlur={() => {
+              if (typeof window !== 'undefined') {
+                if (Number.isFinite(ltp) && ltp > 0) {
+                  window.localStorage.setItem(`ltp:${instrumentKey}`, String(ltp));
+                } else {
+                  window.localStorage.removeItem(`ltp:${instrumentKey}`);
+                }
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.currentTarget.blur();
+              }
+            }}
+            step={tickSize || 0.05}
+            min="0"
+            placeholder="Price"
+            className="w-32 text-right text-2xl font-mono bg-transparent border-b border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500"
+          />
           <div className="text-[11px] text-slate-500 dark:text-slate-400">
+            {ltpStatus === "manual" && "Manual price"}
             {ltpStatus === "ok" && "Live price"}
-            {ltpStatus === "idle" && "Loading..."}
-            {ltpStatus === "unauth" && "Set Upstox token in Settings"}
             {ltpStatus === "error" && "Error fetching LTP"}
           </div>
         </div>

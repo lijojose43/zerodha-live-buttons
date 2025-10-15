@@ -17,12 +17,13 @@ export default function ZerodhaLivePriceButton({
   // Live price from parent (StockCard)
   currentPrice = null,
 }) {
-  const { ready, refreshButtons } = useZerodhaPublisher();
+  const { ready, refreshButtons, kite } = useZerodhaPublisher();
   const hiddenLinkRef = useRef(null);
   const wsRef = useRef(null);
   const activeSymbolRef = useRef(null);
   const [price, setPrice] = useState(null);
   const [lastPrice, setLastPrice] = useState(null);
+  const [busy, setBusy] = useState(false);
   // Removed dynamic price color changes; keep static color
 
   useEffect(() => {
@@ -46,11 +47,15 @@ export default function ZerodhaLivePriceButton({
   };
 
   const handleClick = () => {
+    if (busy) return; // prevent duplicate baskets while one is being staged
     // Prefer programmatic Publisher API if available so we can place a 3-leg basket
     try {
-      if (!ready || !window.kite || !lastPrice) {
-        // Fallback: trigger hidden anchor if Publisher not ready or price missing
+      setBusy(true);
+      const hasProgrammatic = ready && !!kite && typeof kite.add === "function";
+      if (!lastPrice) {
+        // Fallback: trigger hidden anchor if price missing
         if (hiddenLinkRef.current) hiddenLinkRef.current.click();
+        setBusy(false);
         return;
       }
 
@@ -68,83 +73,199 @@ export default function ZerodhaLivePriceButton({
         quantity: Number(quantity) || 1,
         variety: "regular",
         product: "MIS",
+        validity: "DAY",
       };
 
       // Clear any previous staged orders if API exists
-      if (typeof window.kite.clear === "function") {
+      if (hasProgrammatic && typeof kite.clear === "function") {
         try {
-          window.kite.clear();
+          kite.clear();
         } catch {}
       }
 
       if (txn === "BUY") {
         const slTrigger = roundToTick(ltp * (1 - (slPct || 0) / 100)); // SL below
+        const slLimit = roundToTick(slTrigger - (tickSize || 0.05)); // unused when using SL-M
         const targetPrice = roundToTick(ltp * (1 + (targetPct || 0) / 100)); // Target above
-
-        // 1) BUY market entry
-        window.kite.add({
-          ...common,
-          transaction_type: "BUY",
-          order_type: "MARKET",
-        });
-
-        // 2) SELL stop-loss (SL-M)
-        window.kite.add({
-          ...common,
-          transaction_type: "SELL",
-          order_type: "SL-M",
-          trigger_price: slTrigger,
-        });
-
-        // 3) SELL target (LIMIT)
-        window.kite.add({
-          ...common,
-          transaction_type: "SELL",
-          order_type: "LIMIT",
-          price: targetPrice,
-        });
+        if (hasProgrammatic) {
+          const legs = [
+            { ...common, transaction_type: "BUY", order_type: "MARKET" },
+            { ...common, transaction_type: "SELL", order_type: "SL-M", trigger_price: slTrigger },
+            { ...common, transaction_type: "SELL", order_type: "LIMIT", price: targetPrice },
+          ];
+          console.debug("[kite] adding BUY legs", legs);
+          const addSeq = (i = 0) => {
+            if (i >= legs.length) {
+              setTimeout(() => {
+                try {
+                  const cnt = typeof kite.count === 'function' ? kite.count() : undefined;
+                  console.debug("[kite] staged legs count:", cnt);
+                } catch {}
+                // Use link() to open basket per docs
+                const id = `kite-launch-${Date.now()}`;
+                const btn = document.createElement('button');
+                btn.id = id;
+                btn.style.display = 'none';
+                document.body.appendChild(btn);
+                try {
+                  // Reset busy when the Publisher finishes (success/cancel)
+                  if (typeof kite.finished === 'function') {
+                    kite.finished(function () { setBusy(false); });
+                  }
+                  if (typeof kite.link === 'function') {
+                    kite.link(`#${id}`);
+                  }
+                } catch {}
+                setTimeout(() => {
+                  btn.click();
+                  setTimeout(() => document.body.removeChild(btn), 1000);
+                }, 50);
+              }, 150);
+              return;
+            }
+            try {
+              kite.add(legs[i]);
+            } catch (e) {
+              console.warn("[kite] add failed", e);
+            }
+            setTimeout(() => addSeq(i + 1), 120);
+          };
+          addSeq(0);
+        } else {
+          // Fallback: create and click three hidden anchors sequentially
+          const entries = [
+            { transaction_type: "BUY", order_type: "MARKET" },
+            { transaction_type: "SELL", order_type: "SL-M", trigger_price: slTrigger },
+            { transaction_type: "SELL", order_type: "LIMIT", price: targetPrice },
+          ];
+          const created = entries.map((cfg) => {
+            const a = document.createElement("a");
+            a.href = "#";
+            a.style.display = "none";
+            a.className = "kite-button";
+            a.target = "_blank";
+            a.rel = "noopener";
+            a.setAttribute("data-kite", hiddenLinkRef.current?.getAttribute("data-kite") || "");
+            a.setAttribute("data-exchange", common.exchange);
+            a.setAttribute("data-tradingsymbol", common.tradingsymbol);
+            a.setAttribute("data-transaction_type", cfg.transaction_type);
+            a.setAttribute("data-quantity", String(common.quantity));
+            a.setAttribute("data-order_type", cfg.order_type);
+            a.setAttribute("data-product", common.product);
+            if (typeof cfg.price === "number") a.setAttribute("data-price", String(cfg.price));
+            else a.setAttribute("data-price", "0");
+            if (typeof cfg.trigger_price === "number") a.setAttribute("data-trigger_price", String(cfg.trigger_price));
+            document.body.appendChild(a);
+            return a;
+          });
+          // Initialize anchors via Publisher script, then click sequentially
+          if (typeof window.kite_publisher_load === "function") {
+            try { window.kite_publisher_load(); } catch {}
+          }
+          created.forEach((a, idx) => {
+            setTimeout(() => {
+              a.click();
+              setTimeout(() => document.body.removeChild(a), 500);
+            }, idx * 350);
+          });
+          // In fallback, clear busy shortly after last click
+          setTimeout(() => setBusy(false), created.length * 400 + 800);
+          return;
+        }
       } else if (txn === "SELL") {
         const slTrigger = roundToTick(ltp * (1 + (slPct || 0) / 100)); // SL above
+        const slLimit = roundToTick(slTrigger + (tickSize || 0.05)); // unused when using SL-M
         const targetPrice = roundToTick(ltp * (1 - (targetPct || 0) / 100)); // Target below
-
-        // 1) SELL market entry
-        window.kite.add({
-          ...common,
-          transaction_type: "SELL",
-          order_type: "MARKET",
-        });
-
-        // 2) BUY stop-loss (SL-M)
-        window.kite.add({
-          ...common,
-          transaction_type: "BUY",
-          order_type: "SL-M",
-          trigger_price: slTrigger,
-        });
-
-        // 3) BUY target (LIMIT)
-        window.kite.add({
-          ...common,
-          transaction_type: "BUY",
-          order_type: "LIMIT",
-          price: targetPrice,
-        });
+        if (hasProgrammatic) {
+          const legs = [
+            { ...common, transaction_type: "SELL", order_type: "MARKET" },
+            { ...common, transaction_type: "BUY", order_type: "SL-M", trigger_price: slTrigger },
+            { ...common, transaction_type: "BUY", order_type: "LIMIT", price: targetPrice },
+          ];
+          console.debug("[kite] adding SELL legs", legs);
+          const addSeq = (i = 0) => {
+            if (i >= legs.length) {
+              setTimeout(() => {
+                try {
+                  const cnt = typeof kite.count === 'function' ? kite.count() : undefined;
+                  console.debug("[kite] staged legs count:", cnt);
+                } catch {}
+                const id = `kite-launch-${Date.now()}`;
+                const btn = document.createElement('button');
+                btn.id = id;
+                btn.style.display = 'none';
+                document.body.appendChild(btn);
+                try {
+                  if (typeof kite.finished === 'function') {
+                    kite.finished(function () { setBusy(false); });
+                  }
+                  if (typeof kite.link === 'function') {
+                    kite.link(`#${id}`);
+                  }
+                } catch {}
+                setTimeout(() => {
+                  btn.click();
+                  setTimeout(() => document.body.removeChild(btn), 1000);
+                }, 50);
+              }, 150);
+              return;
+            }
+            try {
+              kite.add(legs[i]);
+            } catch (e) {
+              console.warn("[kite] add failed", e);
+            }
+            setTimeout(() => addSeq(i + 1), 120);
+          };
+          addSeq(0);
+        } else {
+          // Fallback: create and click three hidden anchors sequentially
+          const entries = [
+            { transaction_type: "SELL", order_type: "MARKET" },
+            { transaction_type: "BUY", order_type: "SL-M", trigger_price: slTrigger },
+            { transaction_type: "BUY", order_type: "LIMIT", price: targetPrice },
+          ];
+          const created = entries.map((cfg) => {
+            const a = document.createElement("a");
+            a.href = "#";
+            a.style.display = "none";
+            a.className = "kite-button";
+            a.setAttribute("data-kite", hiddenLinkRef.current?.getAttribute("data-kite") || "");
+            a.setAttribute("data-exchange", common.exchange);
+            a.setAttribute("data-tradingsymbol", common.tradingsymbol);
+            a.setAttribute("data-transaction_type", cfg.transaction_type);
+            a.setAttribute("data-quantity", String(common.quantity));
+            a.setAttribute("data-order_type", cfg.order_type);
+            a.setAttribute("data-product", common.product);
+            if (typeof cfg.price === "number") a.setAttribute("data-price", String(cfg.price));
+            else a.setAttribute("data-price", "0");
+            if (typeof cfg.trigger_price === "number") a.setAttribute("data-trigger_price", String(cfg.trigger_price));
+            document.body.appendChild(a);
+            return a;
+          });
+          if (typeof window.kite_publisher_load === "function") {
+            try { window.kite_publisher_load(); } catch {}
+          }
+          created.forEach((a, idx) => {
+            setTimeout(() => {
+              a.click();
+              setTimeout(() => document.body.removeChild(a), 500);
+            }, idx * 200);
+          });
+          setTimeout(() => setBusy(false), created.length * 250 + 800);
+          return;
+        }
       } else {
         // Unknown action, fallback
         if (hiddenLinkRef.current) hiddenLinkRef.current.click();
         return;
       }
 
-      // Open the Publisher basket popup
-      if (typeof window.kite.publish === "function") {
-        window.kite.publish();
-      } else if (hiddenLinkRef.current) {
-        // Fallback if publish API not present
-        hiddenLinkRef.current.click();
-      }
+      // No direct publish here; we trigger link() above after staging legs
     } catch (e) {
       // As a safety fallback
       if (hiddenLinkRef.current) hiddenLinkRef.current.click();
+      setBusy(false);
     }
   };
 
@@ -169,11 +290,12 @@ export default function ZerodhaLivePriceButton({
 
       <button
         onClick={handleClick}
+        disabled={busy}
         className={`${className} ${compact ? "px-3 py-1.5 text-sm" : "px-4 py-2"} rounded-lg font-semibold shadow-md transition-all flex flex-col items-center ${
           action.toUpperCase() === "BUY"
             ? "bg-green-500 hover:bg-green-600 text-white"
             : "bg-red-500 hover:bg-red-600 text-white"
-        }`}
+        } ${busy ? "opacity-60 cursor-not-allowed" : ""}`}
       >
         <span>
           {action} {symbol}

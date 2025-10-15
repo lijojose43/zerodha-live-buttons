@@ -54,15 +54,7 @@ export default function App() {
       ];
     }
   });
-  const [upstoxToken, setUpstoxToken] = useState(() => {
-    const v =
-      typeof window !== "undefined"
-        ? localStorage.getItem("upstoxToken")
-        : null;
-    return v || "";
-  });
   const [newStockSymbol, setNewStockSymbol] = useState("");
-  const [newStockKey, setNewStockKey] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [capitalTotal, setCapitalTotal] = useState(() => {
     const v =
@@ -109,23 +101,19 @@ export default function App() {
   const openSettings = () => setShowSettings(true);
   const closeSettings = () => setShowSettings(false);
 
-  const addStock = (symRaw, keyRaw) => {
+  const addStock = (symRaw) => {
     const sym = String(symRaw || "")
       .toUpperCase()
       .trim();
-    const key = String(keyRaw || symRaw || "")
-      .toUpperCase()
-      .trim();
-    if (!sym && !key) return;
-    const id = `${key || sym}`;
+    if (!sym) return;
+    const id = `${sym}`;
     setStocks((prev) => {
       const list = prev || [];
-      // prevent duplicates by instrumentKey
-      if (list.some((x) => x.instrumentKey === (key || sym))) return list;
-      return [...list, { id, symbol: sym || key, instrumentKey: key || sym }];
+      // prevent duplicates by symbol/instrumentKey
+      if (list.some((x) => (x.instrumentKey || x.symbol) === sym)) return list;
+      return [...list, { id, symbol: sym, instrumentKey: sym }];
     });
     setNewStockSymbol("");
-    setNewStockKey("");
   };
   const removeStock = (id) => {
     setStocks((prev) => (prev || []).filter((s) => s.id !== id));
@@ -150,13 +138,6 @@ export default function App() {
       localStorage.setItem("stocks", JSON.stringify(stocks || []));
     } catch {}
   }, [stocks]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (upstoxToken) localStorage.setItem("upstoxToken", upstoxToken);
-      else localStorage.removeItem("upstoxToken");
-    }
-  }, [upstoxToken]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white p-6 space-y-4">
@@ -225,7 +206,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stocks.map((it) => (
           <StockCard
             key={it.id}
@@ -233,7 +214,7 @@ export default function App() {
             instrumentKey={it.instrumentKey || it.symbol}
             quantity={2}
             exchange="NSE"
-            capitalPerStock={stocks.length ? capitalTotal / stocks.length : 0}
+            capitalPerStock={capitalTotal * leverage}
             leverage={leverage}
             targetPct={targetPct}
             slPct={slPct}
@@ -285,9 +266,6 @@ export default function App() {
                       className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-700 text-sm"
                     >
                       <span className="font-semibold">{it.symbol}</span>
-                      <span className="text-xs text-slate-500">
-                        {it.instrumentKey}
-                      </span>
                       <button
                         type="button"
                         onClick={() => removeStock(it.id)}
@@ -300,25 +278,18 @@ export default function App() {
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex-1">
                     <input
                       type="text"
                       value={newStockSymbol}
                       onChange={(e) => setNewStockSymbol(e.target.value)}
-                      placeholder="Symbol e.g. RELIANCE"
-                      className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <input
-                      type="text"
-                      value={newStockKey}
-                      onChange={(e) => setNewStockKey(e.target.value)}
-                      placeholder="Instrument Key e.g. NSE_EQ|RELIANCE"
-                      className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Enter symbol e.g. RELIANCE"
+                      className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                   <button
                     type="button"
-                    onClick={() => addStock(newStockSymbol, newStockKey)}
+                    onClick={() => addStock(newStockSymbol)}
                     className="rounded-md px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white"
                   >
                     Add
@@ -340,10 +311,7 @@ export default function App() {
                   placeholder="e.g. 100000"
                 />
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Per-stock capital used:{" "}
-                  {stocks.length
-                    ? `₹${(capitalTotal / stocks.length).toFixed(2)}`
-                    : "--"}
+                  Per-stock capital used (with leverage): ₹{(capitalTotal * leverage).toFixed(2)}
                 </p>
               </div>
               <div>
@@ -392,23 +360,6 @@ export default function App() {
                     placeholder="e.g. 0.5"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm mb-1" htmlFor="upstoxToken">
-                  Upstox Access Token
-                </label>
-                <input
-                  id="upstoxToken"
-                  type="password"
-                  value={upstoxToken}
-                  onChange={(e) => setUpstoxToken(e.target.value)}
-                  placeholder="Paste your Bearer token"
-                  className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Stored locally in your browser (localStorage). Do not share
-                  this token.
-                </p>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button
