@@ -218,11 +218,11 @@ export default function StockCard({
             <span className="text-white">{effectiveQty}</span>
           </div>
           <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
-            <span>Potential</span>
+            <span>Profit</span>
             <span>₹{potentialBuyProfit.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-base font-medium text-red-600 dark:text-red-300">
-            <span>Risk</span>
+            <span>Loss</span>
             <span>₹{potentialBuyLoss.toFixed(2)}</span>
           </div>
         </div>
@@ -244,11 +244,11 @@ export default function StockCard({
             <span className="text-white">{effectiveQty}</span>
           </div>
           <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
-            <span>Potential</span>
+            <span>Profit</span>
             <span>₹{potentialSellProfit.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-base font-medium text-red-600 dark:text-red-300">
-            <span>Risk</span>
+            <span>Loss</span>
             <span>₹{potentialSellLoss.toFixed(2)}</span>
           </div>
         </div>
