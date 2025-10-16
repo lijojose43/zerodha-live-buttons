@@ -18,7 +18,9 @@ const PWAStatus = () => {
         "(display-mode: standalone)"
       ).matches;
       const isIOSStandalone = window.navigator.standalone === true;
-      setIsInstalled(isStandalone || isIOSStandalone);
+      const isPWA = isStandalone || isIOSStandalone;
+      
+      setIsInstalled(isPWA);
     };
 
     // Check current theme and listen for changes
@@ -34,6 +36,9 @@ const PWAStatus = () => {
 
     checkInstalled();
     checkTheme();
+    
+    // Always enable desktop site mode for PWA
+    requestDesktopSite();
 
     // Listen for theme changes
     const observer = new MutationObserver(() => {
@@ -67,6 +72,34 @@ const PWAStatus = () => {
       meta.name = 'theme-color';
       meta.content = color;
       document.head.appendChild(meta);
+    }
+  };
+
+  // Request desktop site mode for PWA
+  const requestDesktopSite = () => {
+    try {
+      // Update viewport for desktop experience
+      const viewportMeta = document.querySelector('meta[name="viewport"]');
+      if (viewportMeta) {
+        viewportMeta.setAttribute('content', 'width=1024, initial-scale=0.8, user-scalable=yes');
+      }
+
+      // Add desktop user agent hint if supported
+      if ('userAgentData' in navigator && navigator.userAgentData.getHighEntropyValues) {
+        navigator.userAgentData.getHighEntropyValues(['platform', 'platformVersion'])
+          .then(ua => {
+            console.log('PWA: Desktop site mode requested', ua);
+          })
+          .catch(err => console.log('PWA: User agent data not available', err));
+      }
+
+      // Set desktop-friendly CSS custom properties
+      document.documentElement.style.setProperty('--pwa-desktop-mode', '1');
+      document.body.classList.add('pwa-desktop-mode');
+      
+      console.log('PWA: Desktop site mode enabled');
+    } catch (error) {
+      console.log('PWA: Desktop site mode request failed', error);
     }
   };
 
