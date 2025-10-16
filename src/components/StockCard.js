@@ -201,55 +201,55 @@ export default function StockCard({
 
       <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
-          <div className="flex justify-between">
+          <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">Target</span>
             <span className="font-mono">
               {buyTarget ? `₹${buyTarget.toFixed(2)}` : "--"}
             </span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">SL</span>
             <span className="font-mono">
               {buySL ? `₹${buySL.toFixed(2)}` : "--"}
             </span>
           </div>
-          <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
+          <div className="flex justify-between text-base text-slate-600 dark:text-slate-400">
             <span>Qty</span>
             <span className="text-white">{effectiveQty}</span>
           </div>
-          <div className="mt-2 flex justify-between text-sm font-medium text-green-600 dark:text-green-300">
+          <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
             <span>Potential</span>
-            <span>+₹{potentialBuyProfit.toFixed(2)}</span>
+            <span>₹{potentialBuyProfit.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-sm font-medium text-red-600 dark:text-red-300">
+          <div className="flex justify-between text-base font-medium text-red-600 dark:text-red-300">
             <span>Risk</span>
-            <span>-₹{potentialBuyLoss.toFixed(2)}</span>
+            <span>₹{potentialBuyLoss.toFixed(2)}</span>
           </div>
         </div>
         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
-          <div className="flex justify-between">
+          <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">Target</span>
             <span className="font-mono">
               {sellTarget ? `₹${sellTarget.toFixed(2)}` : "--"}
             </span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">SL</span>
             <span className="font-mono">
               {sellSL ? `₹${sellSL.toFixed(2)}` : "--"}
             </span>
           </div>
-          <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
+          <div className="flex justify-between text-base text-slate-600 dark:text-slate-400">
             <span>Qty</span>
             <span className="text-white">{effectiveQty}</span>
           </div>
-          <div className="mt-2 flex justify-between text-sm font-medium text-green-600 dark:text-green-300">
+          <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
             <span>Potential</span>
-            <span>+₹{potentialSellProfit.toFixed(2)}</span>
+            <span>₹{potentialSellProfit.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-sm font-medium text-red-600 dark:text-red-300">
+          <div className="flex justify-between text-base font-medium text-red-600 dark:text-red-300">
             <span>Risk</span>
-            <span>-₹{potentialSellLoss.toFixed(2)}</span>
+            <span>₹{potentialSellLoss.toFixed(2)}</span>
           </div>
         </div>
       </div>
