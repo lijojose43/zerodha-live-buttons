@@ -47,6 +47,32 @@ export default function ZerodhaLivePriceButton({
     return Math.round(p / tickSize) * tickSize;
   };
 
+  // Function to temporarily request desktop site mode
+  const requestDesktopMode = () => {
+    // Store original viewport meta tag
+    const originalViewport = document.querySelector('meta[name="viewport"]');
+    const originalContent = originalViewport ? originalViewport.getAttribute('content') : null;
+    
+    // Set desktop mode viewport
+    if (originalViewport) {
+      originalViewport.setAttribute('content', 'width=1024, initial-scale=1.0, user-scalable=yes');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'viewport';
+      meta.content = 'width=1024, initial-scale=1.0, user-scalable=yes';
+      document.head.appendChild(meta);
+    }
+    
+    // Restore original viewport after a delay (when Kite page loads)
+    setTimeout(() => {
+      if (originalViewport && originalContent) {
+        originalViewport.setAttribute('content', originalContent);
+      } else if (originalViewport) {
+        originalViewport.setAttribute('content', 'width=device-width, initial-scale=1');
+      }
+    }, 3000); // 3 seconds delay to allow Kite page to load
+  };
+
   const handleClick = () => {
     const now = Date.now();
     // Prevent duplicate clicks within 2 seconds
@@ -54,6 +80,9 @@ export default function ZerodhaLivePriceButton({
       console.log('Duplicate click prevented - order already in progress');
       return;
     }
+    
+    // Request desktop mode before opening Kite
+    requestDesktopMode();
     
     setLastClickTime(now);
     // Prefer programmatic Publisher API if available so we can place a 3-leg basket
@@ -297,6 +326,7 @@ export default function ZerodhaLivePriceButton({
         href="#"
         style={{ display: "none" }}
         className="kite-button"
+        onClick={requestDesktopMode}
         data-kite="v4mpvs6exp4garzl"
         data-exchange={exchange}
         data-tradingsymbol={symbol}
