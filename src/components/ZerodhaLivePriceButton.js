@@ -41,10 +41,12 @@ export default function ZerodhaLivePriceButton({
     }
   }, [currentPrice]);
 
-  // Round a price to the nearest valid tick
+  // Round a price to the nearest valid tick with exactly 2 decimal places
   const roundToTick = (p) => {
     if (!tickSize || tickSize <= 0) return Number(p.toFixed(2));
-    return Math.round(p / tickSize) * tickSize;
+    const tickRounded = Math.round(p / tickSize) * tickSize;
+    // Ensure exactly 2 decimal places for SL and Limit orders
+    return Number(tickRounded.toFixed(2));
   };
 
   // Function to temporarily request desktop site mode
