@@ -155,34 +155,42 @@ export default function StockCard({
           </p>
         </div>
         <div className="text-right">
-          <input
-            type="number"
-            inputMode="decimal"
-            value={Number.isFinite(ltp) && ltp > 0 ? ltp : ''}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              setLtp(Number.isFinite(val) ? val : 0);
-              setLtpStatus("manual");
-            }}
-            onBlur={() => {
-              if (typeof window !== 'undefined') {
-                if (Number.isFinite(ltp) && ltp > 0) {
-                  window.localStorage.setItem(`ltp:${instrumentKey}`, String(ltp));
-                } else {
-                  window.localStorage.removeItem(`ltp:${instrumentKey}`);
+          <div className="relative">
+            <span className="absolute left-0 top-0 text-2xl font-mono text-slate-500 dark:text-slate-400">₹</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              value={Number.isFinite(ltp) && ltp > 0 ? ltp : ''}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                // Allow up to 5 digits before decimal and 2 after decimal (format: 12345.67)
+                const regex = /^\d{1,5}(\.\d{0,2})?$/;
+                if (inputValue === '' || regex.test(inputValue)) {
+                  const val = Number(inputValue);
+                  setLtp(Number.isFinite(val) ? val : 0);
+                  setLtpStatus("manual");
                 }
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.currentTarget.blur();
-              }
-            }}
-            step={tickSize || 0.05}
-            min="0"
-            placeholder="Price"
-            className="w-32 text-right text-2xl font-mono bg-transparent border-b border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500"
-          />
+              }}
+              onBlur={() => {
+                if (typeof window !== 'undefined') {
+                  if (Number.isFinite(ltp) && ltp > 0) {
+                    window.localStorage.setItem(`ltp:${instrumentKey}`, String(ltp));
+                  } else {
+                    window.localStorage.removeItem(`ltp:${instrumentKey}`);
+                  }
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.currentTarget.blur();
+                }
+              }}
+              step={tickSize || 0.05}
+              min="0"
+              placeholder="0.00"
+              className="w-32 text-right text-2xl font-mono bg-transparent focus:outline-none pl-6"
+            />
+          </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400">
             {ltpStatus === "manual" && "Manual price"}
             {ltpStatus === "ok" && "Live price"}
@@ -205,11 +213,17 @@ export default function StockCard({
               {buySL ? `₹${buySL.toFixed(2)}` : "--"}
             </span>
           </div>
-          <div className="mt-2 text-[12px] text-green-600 dark:text-green-300">
-            Potential +₹{potentialBuyProfit.toFixed(2)}
+          <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
+            <span>Qty</span>
+            <span className="text-white">{effectiveQty}</span>
           </div>
-          <div className="text-[12px] text-red-600 dark:text-red-300">
-            Risk -₹{potentialBuyLoss.toFixed(2)}
+          <div className="mt-2 flex justify-between text-sm font-medium text-green-600 dark:text-green-300">
+            <span>Potential</span>
+            <span>+₹{potentialBuyProfit.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm font-medium text-red-600 dark:text-red-300">
+            <span>Risk</span>
+            <span>-₹{potentialBuyLoss.toFixed(2)}</span>
           </div>
         </div>
         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
@@ -225,11 +239,17 @@ export default function StockCard({
               {sellSL ? `₹${sellSL.toFixed(2)}` : "--"}
             </span>
           </div>
-          <div className="mt-2 text-[12px] text-green-600 dark:text-green-300">
-            Potential +₹{potentialSellProfit.toFixed(2)}
+          <div className="flex justify-between text-sm text-slate-600 dark:text-slate-400">
+            <span>Qty</span>
+            <span className="text-white">{effectiveQty}</span>
           </div>
-          <div className="text-[12px] text-red-600 dark:text-red-300">
-            Risk -₹{potentialSellLoss.toFixed(2)}
+          <div className="mt-2 flex justify-between text-sm font-medium text-green-600 dark:text-green-300">
+            <span>Potential</span>
+            <span>+₹{potentialSellProfit.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm font-medium text-red-600 dark:text-red-300">
+            <span>Risk</span>
+            <span>-₹{potentialSellLoss.toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -245,7 +265,7 @@ export default function StockCard({
           targetPct={targetPct}
           slPct={slPct}
           compact
-          className="justify-center"
+          className="justify-center w-full"
         />
         <ZerodhaLivePriceButton
           symbol={symbol}
@@ -257,11 +277,8 @@ export default function StockCard({
           targetPct={targetPct}
           slPct={slPct}
           compact
-          className="justify-center"
+          className="justify-center w-full"
         />
-      </div>
-      <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-        Qty: {effectiveQty}
       </div>
     </div>
   );
