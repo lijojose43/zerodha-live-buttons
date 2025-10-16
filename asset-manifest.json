@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/zerodha-live-buttons/static/css/main.53151e93.css",
-    "main.js": "/zerodha-live-buttons/static/js/main.a6b4e463.js",
+    "main.css": "/zerodha-live-buttons/static/css/main.982b89fa.css",
+    "main.js": "/zerodha-live-buttons/static/js/main.289a8e7a.js",
     "index.html": "/zerodha-live-buttons/index.html",
-    "main.53151e93.css.map": "/zerodha-live-buttons/static/css/main.53151e93.css.map",
-    "main.a6b4e463.js.map": "/zerodha-live-buttons/static/js/main.a6b4e463.js.map"
+    "main.982b89fa.css.map": "/zerodha-live-buttons/static/css/main.982b89fa.css.map",
+    "main.289a8e7a.js.map": "/zerodha-live-buttons/static/js/main.289a8e7a.js.map"
   },
   "entrypoints": [
-    "static/css/main.53151e93.css",
-    "static/js/main.a6b4e463.js"
+    "static/css/main.982b89fa.css",
+    "static/js/main.289a8e7a.js"
   ]
 }
