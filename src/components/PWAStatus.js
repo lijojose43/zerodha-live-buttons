@@ -21,6 +21,11 @@ const PWAStatus = () => {
       const isPWA = isStandalone || isIOSStandalone;
       
       setIsInstalled(isPWA);
+      
+      // Request desktop site mode when PWA is detected
+      if (isPWA) {
+        requestDesktopSite();
+      }
     };
 
     // Check current theme and listen for changes
@@ -36,9 +41,6 @@ const PWAStatus = () => {
 
     checkInstalled();
     checkTheme();
-    
-    // Always enable desktop site mode for PWA
-    requestDesktopSite();
 
     // Listen for theme changes
     const observer = new MutationObserver(() => {
