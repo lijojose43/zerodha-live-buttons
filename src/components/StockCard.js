@@ -139,7 +139,7 @@ export default function StockCard({
   };
 
   return (
-    <div className="rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full min-w-0 flex-shrink-0">
+    <div className="rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full max-w-sm">
       <div className="flex items-baseline justify-between">
         <div>
           <button
@@ -188,7 +188,7 @@ export default function StockCard({
               step={tickSize || 0.05}
               min="0"
               placeholder="0.00"
-              className="w-full max-w-32 min-w-20 text-right text-2xl font-mono bg-transparent focus:outline-none pl-6"
+              className="w-32 text-right text-2xl font-mono bg-transparent focus:outline-none pl-6"
             />
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -199,7 +199,7 @@ export default function StockCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 mt-4 text-sm">
+      <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">Target</span>
@@ -254,7 +254,7 @@ export default function StockCard({
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 xs:grid-cols-2 gap-2">
+      <div className="mt-4 grid grid-cols-2 gap-2">
         <ZerodhaLivePriceButton
           symbol={symbol}
           action="BUY"
