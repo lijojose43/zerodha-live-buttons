@@ -16,7 +16,18 @@ export default function StockCard({
   slPct = 0.5,
 }) {
   const [ltp, setLtp] = useState(0);
+  const [ltpInput, setLtpInput] = useState('');
   const [ltpStatus, setLtpStatus] = useState("manual"); // manual | ok | error
+  
+  // Custom target and SL prices (null means use calculated values)
+  const [customBuyTarget, setCustomBuyTarget] = useState(null);
+  const [customBuyTargetInput, setCustomBuyTargetInput] = useState('');
+  const [customBuySL, setCustomBuySL] = useState(null);
+  const [customBuySLInput, setCustomBuySLInput] = useState('');
+  const [customSellTarget, setCustomSellTarget] = useState(null);
+  const [customSellTargetInput, setCustomSellTargetInput] = useState('');
+  const [customSellSL, setCustomSellSL] = useState(null);
+  const [customSellSLInput, setCustomSellSLInput] = useState('');
   const roundToTick = (p) => {
     if (!tickSize || tickSize <= 0) return Number(p.toFixed(2));
     return Math.round(p / tickSize) * tickSize;
@@ -39,16 +50,38 @@ export default function StockCard({
   }, [instrumentKey, symbol]);
 
   // Live price fetching is disabled (Upstox removed). Manual entry enabled.
-  // Load saved LTP from localStorage on instrument change
+  // Load saved LTP and custom prices from localStorage on instrument change
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = window.localStorage.getItem(`ltp:${instrumentKey}`);
       const n = saved ? Number(saved) : 0;
       if (Number.isFinite(n) && n > 0) {
         setLtp(n);
+        setLtpInput(String(n));
       } else {
         setLtp(0);
+        setLtpInput('');
       }
+      
+      // Load custom target and SL values
+      const savedBuyTarget = window.localStorage.getItem(`buyTarget:${instrumentKey}`);
+      const savedBuySL = window.localStorage.getItem(`buySL:${instrumentKey}`);
+      const savedSellTarget = window.localStorage.getItem(`sellTarget:${instrumentKey}`);
+      const savedSellSL = window.localStorage.getItem(`sellSL:${instrumentKey}`);
+      
+      const buyTargetVal = savedBuyTarget ? Number(savedBuyTarget) : null;
+      const buySLVal = savedBuySL ? Number(savedBuySL) : null;
+      const sellTargetVal = savedSellTarget ? Number(savedSellTarget) : null;
+      const sellSLVal = savedSellSL ? Number(savedSellSL) : null;
+      
+      setCustomBuyTarget(buyTargetVal);
+      setCustomBuyTargetInput(buyTargetVal ? String(buyTargetVal) : '');
+      setCustomBuySL(buySLVal);
+      setCustomBuySLInput(buySLVal ? String(buySLVal) : '');
+      setCustomSellTarget(sellTargetVal);
+      setCustomSellTargetInput(sellTargetVal ? String(sellTargetVal) : '');
+      setCustomSellSL(sellSLVal);
+      setCustomSellSLInput(sellSLVal ? String(sellSLVal) : '');
     }
     setLtpStatus("manual");
   }, [instrumentKey]);
@@ -62,10 +95,32 @@ export default function StockCard({
     [ltp, capitalPerStock]
   );
   const effectiveQty = autoQty || quantity || 1;
-  const buyTarget = ltp ? roundToTick(ltp * (1 + (targetPct || 0) / 100)) : 0;
-  const buySL = ltp ? roundToTick(ltp * (1 - (slPct || 0) / 100)) : 0;
-  const sellTarget = ltp ? roundToTick(ltp * (1 - (targetPct || 0) / 100)) : 0;
-  const sellSL = ltp ? roundToTick(ltp * (1 + (slPct || 0) / 100)) : 0;
+  const calculatedBuyTarget = ltp ? roundToTick(ltp * (1 + (targetPct || 0) / 100)) : 0;
+  const calculatedBuySL = ltp ? roundToTick(ltp * (1 - (slPct || 0) / 100)) : 0;
+  const calculatedSellTarget = ltp ? roundToTick(ltp * (1 - (targetPct || 0) / 100)) : 0;
+  const calculatedSellSL = ltp ? roundToTick(ltp * (1 + (slPct || 0) / 100)) : 0;
+  
+  // Update all calculated values when LTP changes - clear custom overrides
+  useEffect(() => {
+    if (ltp > 0) {
+      // Clear custom values and their input states when LTP changes
+      // This ensures all values update based on the new LTP
+      setCustomBuyTarget(null);
+      setCustomBuyTargetInput('');
+      setCustomBuySL(null);
+      setCustomBuySLInput('');
+      setCustomSellTarget(null);
+      setCustomSellTargetInput('');
+      setCustomSellSL(null);
+      setCustomSellSLInput('');
+    }
+  }, [ltp]);
+
+  // Use custom values if set, otherwise use calculated values
+  const buyTarget = customBuyTarget !== null ? customBuyTarget : calculatedBuyTarget;
+  const buySL = customBuySL !== null ? customBuySL : calculatedBuySL;
+  const sellTarget = customSellTarget !== null ? customSellTarget : calculatedSellTarget;
+  const sellSL = customSellSL !== null ? customSellSL : calculatedSellSL;
 
   // Brokerage/charges calculation based on provided PHP logic
   const round2 = (n) => Math.round(n * 100) / 100;
@@ -156,16 +211,16 @@ export default function StockCard({
         </div>
         <div className="text-right">
           <div className="relative">
-            <span className="absolute left-0 top-0 text-2xl font-mono text-slate-500 dark:text-slate-400">₹</span>
             <input
               type="number"
               inputMode="decimal"
-              value={Number.isFinite(ltp) && ltp > 0 ? ltp : ''}
+              value={ltpInput}
               onChange={(e) => {
                 const inputValue = e.target.value;
-                // Allow up to 5 digits before decimal and 2 after decimal (format: 12345.67)
-                const regex = /^\d{1,5}(\.\d{0,2})?$/;
-                if (inputValue === '' || regex.test(inputValue)) {
+                // Allow partial inputs including trailing dots and incomplete decimals
+                const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
+                if (regex.test(inputValue)) {
+                  setLtpInput(inputValue);
                   const val = Number(inputValue);
                   setLtp(Number.isFinite(val) ? val : 0);
                   setLtpStatus("manual");
@@ -188,7 +243,7 @@ export default function StockCard({
               step={tickSize || 0.05}
               min="0"
               placeholder="0.00"
-              className="w-32 text-right text-2xl font-mono bg-transparent focus:outline-none pl-6"
+              className="w-32 text-right text-2xl font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
             />
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -203,15 +258,77 @@ export default function StockCard({
         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">Target</span>
-            <span className="font-mono">
-              {buyTarget ? `₹${buyTarget.toFixed(2)}` : "--"}
-            </span>
+            <div className="relative">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={customBuyTargetInput || (customBuyTarget === null && buyTarget > 0 ? buyTarget.toFixed(2) : '')}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
+                  if (regex.test(inputValue)) {
+                    setCustomBuyTargetInput(inputValue);
+                    const val = Number(inputValue);
+                    setCustomBuyTarget(Number.isFinite(val) && val > 0 ? val : null);
+                  }
+                }}
+                onBlur={() => {
+                  if (typeof window !== 'undefined') {
+                    if (customBuyTarget !== null && customBuyTarget > 0) {
+                      window.localStorage.setItem(`buyTarget:${instrumentKey}`, String(customBuyTarget));
+                    } else {
+                      window.localStorage.removeItem(`buyTarget:${instrumentKey}`);
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+                step={tickSize || 0.05}
+                min="0"
+                placeholder="0.00"
+                className="w-20 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              />
+            </div>
           </div>
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">SL</span>
-            <span className="font-mono">
-              {buySL ? `₹${buySL.toFixed(2)}` : "--"}
-            </span>
+            <div className="relative">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={customBuySLInput || (customBuySL === null && buySL > 0 ? buySL.toFixed(2) : '')}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
+                  if (regex.test(inputValue)) {
+                    setCustomBuySLInput(inputValue);
+                    const val = Number(inputValue);
+                    setCustomBuySL(Number.isFinite(val) && val > 0 ? val : null);
+                  }
+                }}
+                onBlur={() => {
+                  if (typeof window !== 'undefined') {
+                    if (customBuySL !== null && customBuySL > 0) {
+                      window.localStorage.setItem(`buySL:${instrumentKey}`, String(customBuySL));
+                    } else {
+                      window.localStorage.removeItem(`buySL:${instrumentKey}`);
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+                step={tickSize || 0.05}
+                min="0"
+                placeholder="0.00"
+                className="w-20 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              />
+            </div>
           </div>
           <div className="flex justify-between text-base text-slate-600 dark:text-slate-400">
             <span>Qty</span>
@@ -219,25 +336,87 @@ export default function StockCard({
           </div>
           <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
             <span>Profit</span>
-            <span>₹{potentialBuyProfit.toFixed(2)}</span>
+            <span>{potentialBuyProfit.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-base font-medium text-red-600 dark:text-red-300">
             <span>Loss</span>
-            <span>₹{potentialBuyLoss.toFixed(2)}</span>
+            <span>{potentialBuyLoss.toFixed(2)}</span>
           </div>
         </div>
         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">Target</span>
-            <span className="font-mono">
-              {sellTarget ? `₹${sellTarget.toFixed(2)}` : "--"}
-            </span>
+            <div className="relative">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={customSellTargetInput || (customSellTarget === null && sellTarget > 0 ? sellTarget.toFixed(2) : '')}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
+                  if (regex.test(inputValue)) {
+                    setCustomSellTargetInput(inputValue);
+                    const val = Number(inputValue);
+                    setCustomSellTarget(Number.isFinite(val) && val > 0 ? val : null);
+                  }
+                }}
+                onBlur={() => {
+                  if (typeof window !== 'undefined') {
+                    if (customSellTarget !== null && customSellTarget > 0) {
+                      window.localStorage.setItem(`sellTarget:${instrumentKey}`, String(customSellTarget));
+                    } else {
+                      window.localStorage.removeItem(`sellTarget:${instrumentKey}`);
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+                step={tickSize || 0.05}
+                min="0"
+                placeholder="0.00"
+                className="w-20 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              />
+            </div>
           </div>
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">SL</span>
-            <span className="font-mono">
-              {sellSL ? `₹${sellSL.toFixed(2)}` : "--"}
-            </span>
+            <div className="relative">
+              <input
+                type="number"
+                inputMode="decimal"
+                value={customSellSLInput || (customSellSL === null && sellSL > 0 ? sellSL.toFixed(2) : '')}
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
+                  if (regex.test(inputValue)) {
+                    setCustomSellSLInput(inputValue);
+                    const val = Number(inputValue);
+                    setCustomSellSL(Number.isFinite(val) && val > 0 ? val : null);
+                  }
+                }}
+                onBlur={() => {
+                  if (typeof window !== 'undefined') {
+                    if (customSellSL !== null && customSellSL > 0) {
+                      window.localStorage.setItem(`sellSL:${instrumentKey}`, String(customSellSL));
+                    } else {
+                      window.localStorage.removeItem(`sellSL:${instrumentKey}`);
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+                step={tickSize || 0.05}
+                min="0"
+                placeholder="0.00"
+                className="w-20 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              />
+            </div>
           </div>
           <div className="flex justify-between text-base text-slate-600 dark:text-slate-400">
             <span>Qty</span>
@@ -245,11 +424,11 @@ export default function StockCard({
           </div>
           <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
             <span>Profit</span>
-            <span>₹{potentialSellProfit.toFixed(2)}</span>
+            <span>{potentialSellProfit.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-base font-medium text-red-600 dark:text-red-300">
             <span>Loss</span>
-            <span>₹{potentialSellLoss.toFixed(2)}</span>
+            <span>{potentialSellLoss.toFixed(2)}</span>
           </div>
         </div>
       </div>
