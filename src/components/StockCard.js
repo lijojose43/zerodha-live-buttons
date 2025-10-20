@@ -195,7 +195,7 @@ export default function StockCard({
 
   return (
     <div className="rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full max-w-sm">
-      <div className="flex items-center justify-between">
+      <div className="flex items-baseline justify-between">
         <div>
           <button
             type="button"
@@ -243,7 +243,7 @@ export default function StockCard({
               step={tickSize || 0.05}
               min="0"
               placeholder="0.00"
-              className="w-32 text-right text-2xl font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              className="w-32 h-8 text-right text-2xl font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
             />
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400">
