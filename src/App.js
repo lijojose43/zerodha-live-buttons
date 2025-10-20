@@ -244,7 +244,7 @@ export default function App() {
             className="absolute inset-0 bg-black/50"
             onClick={closeSettings}
           />
-          <div className="relative z-10 w-full max-w-md rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-6 shadow-xl ring-1 ring-slate-200 dark:ring-slate-700">
+          <div className="relative z-10 w-full max-w-md rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-6 shadow-xl ring-1 ring-slate-200 dark:ring-slate-700 mx-4 sm:mx-0">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Settings</h2>
               <button

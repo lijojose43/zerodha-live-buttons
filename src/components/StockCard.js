@@ -243,7 +243,7 @@ export default function StockCard({
               step={tickSize || 0.05}
               min="0"
               placeholder="0.00"
-              className="w-32 h-8 text-right text-2xl font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              className="block w-32 h-8 leading-8 p-0 text-right text-2xl font-mono bg-transparent appearance-none focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
             />
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400">
