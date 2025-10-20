@@ -195,7 +195,7 @@ export default function StockCard({
 
   return (
     <div className="rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full max-w-sm">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-start justify-between">
         <div>
           <button
             type="button"
@@ -209,7 +209,7 @@ export default function StockCard({
             {exchange}
           </p>
         </div>
-        <div className="text-right">
+        <div className="text-right mt-1">
           <div className="relative">
             <input
               type="number"
