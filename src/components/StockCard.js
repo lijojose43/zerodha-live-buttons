@@ -195,8 +195,8 @@ export default function StockCard({
 
   return (
     <div className="rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full max-w-sm">
-      <div className="flex items-baseline justify-between">
-        <div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="self-start">
           <button
             type="button"
             onClick={openTradingView}
@@ -209,7 +209,7 @@ export default function StockCard({
             {exchange}
           </p>
         </div>
-        <div className="text-right">
+        <div className="text-right self-start justify-self-end">
           <div className="relative">
             <input
               type="number"
