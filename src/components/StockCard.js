@@ -210,7 +210,8 @@ export default function StockCard({
           </p>
         </div>
         <div className="text-right self-start justify-self-end">
-          <div className="relative">
+          <div className="relative flex items-center">
+            <span className="text-2xl font-mono text-slate-600 dark:text-slate-400 mr-1">₹</span>
             <input
               type="number"
               inputMode="decimal"
@@ -243,7 +244,7 @@ export default function StockCard({
               step={tickSize || 0.05}
               min="0"
               placeholder="0.00"
-              className="block w-32 h-8 leading-8 p-0 text-right text-2xl font-mono bg-transparent appearance-none focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              className="block w-28 h-8 leading-8 p-0 text-right text-2xl font-mono bg-transparent appearance-none focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
             />
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -257,8 +258,9 @@ export default function StockCard({
       <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
           <div className="flex justify-between text-base">
-            <span className="text-slate-600 dark:text-slate-400">Target</span>
-            <div className="relative">
+            <span className="text-slate-600 dark:text-slate-400">TA</span>
+            <div className="relative flex items-center">
+              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">₹</span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -289,13 +291,14 @@ export default function StockCard({
                 step={tickSize || 0.05}
                 min="0"
                 placeholder="0.00"
-                className="w-20 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                className="w-16 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
             </div>
           </div>
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">SL</span>
-            <div className="relative">
+            <div className="relative flex items-center">
+              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">₹</span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -326,7 +329,7 @@ export default function StockCard({
                 step={tickSize || 0.05}
                 min="0"
                 placeholder="0.00"
-                className="w-20 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                className="w-16 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
             </div>
           </div>
@@ -336,17 +339,18 @@ export default function StockCard({
           </div>
           <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
             <span>Profit</span>
-            <span>{potentialBuyProfit.toFixed(2)}</span>
+            <span>₹{potentialBuyProfit.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-base font-medium text-red-600 dark:text-red-300">
             <span>Loss</span>
-            <span>{potentialBuyLoss.toFixed(2)}</span>
+            <span>₹{potentialBuyLoss.toFixed(2)}</span>
           </div>
         </div>
         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
           <div className="flex justify-between text-base">
-            <span className="text-slate-600 dark:text-slate-400">Target</span>
-            <div className="relative">
+            <span className="text-slate-600 dark:text-slate-400">TA</span>
+            <div className="relative flex items-center">
+              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">₹</span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -377,13 +381,14 @@ export default function StockCard({
                 step={tickSize || 0.05}
                 min="0"
                 placeholder="0.00"
-                className="w-20 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                className="w-16 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
             </div>
           </div>
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">SL</span>
-            <div className="relative">
+            <div className="relative flex items-center">
+              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">₹</span>
               <input
                 type="number"
                 inputMode="decimal"
@@ -414,7 +419,7 @@ export default function StockCard({
                 step={tickSize || 0.05}
                 min="0"
                 placeholder="0.00"
-                className="w-20 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                className="w-16 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
             </div>
           </div>
@@ -424,11 +429,11 @@ export default function StockCard({
           </div>
           <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
             <span>Profit</span>
-            <span>{potentialSellProfit.toFixed(2)}</span>
+            <span>₹{potentialSellProfit.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-base font-medium text-red-600 dark:text-red-300">
             <span>Loss</span>
-            <span>{potentialSellLoss.toFixed(2)}</span>
+            <span>₹{potentialSellLoss.toFixed(2)}</span>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import StockCard from "./components/StockCard";
 import PWAInstallButton from "./components/PWAInstallButton";
 import PWAStatus from "./components/PWAStatus";
@@ -107,7 +107,9 @@ export default function App() {
   const openSettings = () => {
     setShowSettings(true);
     setIsBottomSheetAnimating(true);
-    // Use requestAnimationFrame for buttery smooth animation
+    setDragCurrentY(0); // Reset drag position
+    
+    // Use double requestAnimationFrame for ultra-smooth animation
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setIsBottomSheetAnimating(false);
@@ -132,15 +134,15 @@ export default function App() {
     setIsDragging(true);
   };
 
-  const handleDragMove = (e) => {
+  const handleDragMove = useCallback((e) => {
     if (!isDragging) return;
     e.preventDefault();
     const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
     const deltaY = Math.max(0, clientY - dragStartY);
     setDragCurrentY(deltaY);
-  };
+  }, [isDragging, dragStartY]);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     if (!isDragging) return;
     setIsDragging(false);
     
@@ -151,7 +153,7 @@ export default function App() {
       // Smooth snap back with spring animation
       setDragCurrentY(0);
     }
-  };
+  }, [isDragging, dragCurrentY]);
 
   // Add global event listeners for drag handling
   useEffect(() => {
@@ -173,7 +175,7 @@ export default function App() {
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isDragging, dragStartY]);
+  }, [isDragging, handleDragMove, handleDragEnd]);
 
   const addStock = (symRaw) => {
     const sym = String(symRaw || "")
@@ -315,7 +317,8 @@ export default function App() {
           className="fixed inset-0 z-50"
           style={{
             transform: 'translateZ(0)',
-            willChange: 'contents'
+            willChange: 'contents',
+            isolation: 'isolate'
           }}
         >
           {/* Backdrop */}
@@ -332,22 +335,28 @@ export default function App() {
           
           {/* Bottom Sheet */}
           <div 
-            className={`absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xl ${
-              isBottomSheetAnimating ? 'translate-y-full scale-95' : 'translate-y-0 scale-100'
-            }`}
+            className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xl"
             style={{
-              transform: `translateY(${dragCurrentY}px) ${dragCurrentY > 0 ? `scale(${Math.max(0.95, 1 - dragCurrentY / 1000)})` : ''}`,
+              transform: isBottomSheetAnimating 
+                ? 'translateY(100%) scale(0.95)' 
+                : `translateY(${dragCurrentY}px) ${dragCurrentY > 0 ? `scale(${Math.max(0.95, 1 - dragCurrentY / 1000)})` : 'scale(1)'}`,
               borderTopLeftRadius: '24px',
               borderTopRightRadius: '24px',
               maxHeight: '85vh',
               transformOrigin: 'center bottom',
               transition: isDragging 
                 ? 'none' 
-                : 'transform 500ms cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                : isBottomSheetAnimating
+                  ? 'transform 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                  : 'transform 500ms cubic-bezier(0.175, 0.885, 0.32, 1.275)',
               willChange: 'transform, opacity',
               opacity: dragCurrentY > 200 ? Math.max(0.3, 1 - dragCurrentY / 400) : 1,
               backfaceVisibility: 'hidden',
-              perspective: '1000px'
+              perspective: '1000px',
+              WebkitTransform: isBottomSheetAnimating 
+                ? 'translateZ(0) translateY(100%) scale(0.95)' 
+                : `translateZ(0) translateY(${dragCurrentY}px) ${dragCurrentY > 0 ? `scale(${Math.max(0.95, 1 - dragCurrentY / 1000)})` : 'scale(1)'}`,
+              contain: 'layout style paint'
             }}
           >
             {/* Drag Handle */}
