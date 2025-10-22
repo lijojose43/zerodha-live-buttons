@@ -58,6 +58,10 @@ export default function App() {
   });
   const [newStockSymbol, setNewStockSymbol] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [isBottomSheetAnimating, setIsBottomSheetAnimating] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [dragCurrentY, setDragCurrentY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const [capitalTotal, setCapitalTotal] = useState(() => {
     const v =
       typeof window !== "undefined"
@@ -100,8 +104,76 @@ export default function App() {
   }, [theme]);
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
-  const openSettings = () => setShowSettings(true);
-  const closeSettings = () => setShowSettings(false);
+  const openSettings = () => {
+    setShowSettings(true);
+    setIsBottomSheetAnimating(true);
+    // Use requestAnimationFrame for buttery smooth animation
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setIsBottomSheetAnimating(false);
+      });
+    });
+  };
+  
+  const closeSettings = () => {
+    setIsBottomSheetAnimating(true);
+    setTimeout(() => {
+      setShowSettings(false);
+      setIsBottomSheetAnimating(false);
+      setIsDragging(false);
+      setDragCurrentY(0);
+    }, 400);
+  };
+
+  const handleDragStart = (e) => {
+    const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+    setDragStartY(clientY);
+    setDragCurrentY(0);
+    setIsDragging(true);
+  };
+
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+    const deltaY = Math.max(0, clientY - dragStartY);
+    setDragCurrentY(deltaY);
+  };
+
+  const handleDragEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    // Close if dragged down more than 100px or with sufficient velocity
+    if (dragCurrentY > 100) {
+      closeSettings();
+    } else {
+      // Smooth snap back with spring animation
+      setDragCurrentY(0);
+    }
+  };
+
+  // Add global event listeners for drag handling
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => handleDragMove(e);
+    const handleMouseUp = () => handleDragEnd();
+    const handleTouchMove = (e) => handleDragMove(e);
+    const handleTouchEnd = () => handleDragEnd();
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDragging, dragStartY]);
 
   const addStock = (symRaw) => {
     const sym = String(symRaw || "")
@@ -239,18 +311,67 @@ export default function App() {
       </div>
 
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div 
+          className="fixed inset-0 z-50"
+          style={{
+            transform: 'translateZ(0)',
+            willChange: 'contents'
+          }}
+        >
+          {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/50"
+            className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${
+              isBottomSheetAnimating ? 'opacity-0 backdrop-blur-none' : 'opacity-100 backdrop-blur-sm'
+            }`}
+            style={{
+              transition: 'opacity 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94), backdrop-filter 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+              willChange: 'opacity, backdrop-filter'
+            }}
             onClick={closeSettings}
           />
-          <div className="relative z-10 w-full max-w-md rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-6 shadow-xl ring-1 ring-slate-200 dark:ring-slate-700 mx-4 sm:mx-0">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Settings</h2>
+          
+          {/* Bottom Sheet */}
+          <div 
+            className={`absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xl ${
+              isBottomSheetAnimating ? 'translate-y-full scale-95' : 'translate-y-0 scale-100'
+            }`}
+            style={{
+              transform: `translateY(${dragCurrentY}px) ${dragCurrentY > 0 ? `scale(${Math.max(0.95, 1 - dragCurrentY / 1000)})` : ''}`,
+              borderTopLeftRadius: '24px',
+              borderTopRightRadius: '24px',
+              maxHeight: '85vh',
+              transformOrigin: 'center bottom',
+              transition: isDragging 
+                ? 'none' 
+                : 'transform 500ms cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+              willChange: 'transform, opacity',
+              opacity: dragCurrentY > 200 ? Math.max(0.3, 1 - dragCurrentY / 400) : 1,
+              backfaceVisibility: 'hidden',
+              perspective: '1000px'
+            }}
+          >
+            {/* Drag Handle */}
+            <div 
+              className="flex justify-center pt-4 pb-3 cursor-grab active:cursor-grabbing"
+              onMouseDown={handleDragStart}
+              onTouchStart={handleDragStart}
+            >
+              <div 
+                className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full hover:bg-slate-400 dark:hover:bg-slate-500 hover:w-16"
+                style={{
+                  transition: 'all 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                  willChange: 'width, background-color'
+                }}
+              ></div>
+            </div>
+            
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pb-4">
+              <h2 className="text-xl font-semibold">Settings</h2>
               <button
                 onClick={closeSettings}
                 aria-label="Close"
-                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -266,6 +387,9 @@ export default function App() {
                 </svg>
               </button>
             </div>
+            
+            {/* Content */}
+            <div className="px-6 pb-6">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -393,6 +517,7 @@ export default function App() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
