@@ -338,8 +338,8 @@ export default function App() {
             className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xl"
             style={{
               transform: isBottomSheetAnimating 
-                ? 'translateY(100%) scale(0.95)' 
-                : `translateY(${dragCurrentY}px) ${dragCurrentY > 0 ? `scale(${Math.max(0.95, 1 - dragCurrentY / 1000)})` : 'scale(1)'}`,
+                ? 'translateY(100%)' 
+                : `translateY(${dragCurrentY}px)`,
               borderTopLeftRadius: '24px',
               borderTopRightRadius: '24px',
               maxHeight: '85vh',
@@ -348,14 +348,14 @@ export default function App() {
                 ? 'none' 
                 : isBottomSheetAnimating
                   ? 'transform 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-                  : 'transform 500ms cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                  : 'transform 400ms ease-out',
               willChange: 'transform, opacity',
               opacity: dragCurrentY > 200 ? Math.max(0.3, 1 - dragCurrentY / 400) : 1,
               backfaceVisibility: 'hidden',
               perspective: '1000px',
               WebkitTransform: isBottomSheetAnimating 
-                ? 'translateZ(0) translateY(100%) scale(0.95)' 
-                : `translateZ(0) translateY(${dragCurrentY}px) ${dragCurrentY > 0 ? `scale(${Math.max(0.95, 1 - dragCurrentY / 1000)})` : 'scale(1)'}`,
+                ? 'translateZ(0) translateY(100%)' 
+                : `translateZ(0) translateY(${dragCurrentY}px)`,
               contain: 'layout style paint'
             }}
           >
