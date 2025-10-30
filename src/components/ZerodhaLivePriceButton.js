@@ -49,6 +49,37 @@ export default function ZerodhaLivePriceButton({
     return Number(tickRounded.toFixed(2));
   };
 
+  // When a Kite tab/window opens and the user closes it, focus returns here.
+  // Use that signal to clear the busy state so "Processing..." goes away.
+  const setupReturnFocusReset = () => {
+    let cleared = false;
+    const clearBusyState = () => {
+      if (cleared) return;
+      cleared = true;
+      try {
+        setBusy(false);
+        setLastClickTime(0);
+      } catch {}
+      window.removeEventListener('focus', onFocus, true);
+      document.removeEventListener('visibilitychange', onVisibility, true);
+    };
+    const onFocus = () => {
+      // Small delay to avoid racing with popup/tab close
+      setTimeout(clearBusyState, 150);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        setTimeout(clearBusyState, 150);
+      }
+    };
+    window.addEventListener('focus', onFocus, true);
+    document.addEventListener('visibilitychange', onVisibility, true);
+    return () => {
+      window.removeEventListener('focus', onFocus, true);
+      document.removeEventListener('visibilitychange', onVisibility, true);
+    };
+  };
+
   // Function to temporarily request desktop site mode
   const requestDesktopMode = () => {
     // Store original viewport meta tag
@@ -159,6 +190,9 @@ export default function ZerodhaLivePriceButton({
                   }
                 } catch {}
                 setTimeout(() => {
+                  // Install a one-time focus/visibility handler so if user closes
+                  // the Kite window, we clear the Processing state on return.
+                  try { setupReturnFocusReset(); } catch {}
                   btn.click();
                   setTimeout(() => document.body.removeChild(btn), 1000);
                 }, 50);
@@ -204,6 +238,8 @@ export default function ZerodhaLivePriceButton({
           if (typeof window.kite_publisher_load === "function") {
             try { window.kite_publisher_load(); } catch {}
           }
+          // Ensure busy clears when user closes the newly opened window/tab
+          try { setupReturnFocusReset(); } catch {}
           created.forEach((a, idx) => {
             setTimeout(() => {
               a.click();
@@ -252,6 +288,9 @@ export default function ZerodhaLivePriceButton({
                   }
                 } catch {}
                 setTimeout(() => {
+                  // Install a one-time focus/visibility handler so if user closes
+                  // the Kite window, we clear the Processing state on return.
+                  try { setupReturnFocusReset(); } catch {}
                   btn.click();
                   setTimeout(() => document.body.removeChild(btn), 1000);
                 }, 50);
@@ -294,6 +333,8 @@ export default function ZerodhaLivePriceButton({
           if (typeof window.kite_publisher_load === "function") {
             try { window.kite_publisher_load(); } catch {}
           }
+          // Ensure busy clears when user closes the newly opened window/tab
+          try { setupReturnFocusReset(); } catch {}
           created.forEach((a, idx) => {
             setTimeout(() => {
               a.click();
