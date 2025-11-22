@@ -254,7 +254,7 @@ export default function App() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 dark:from-indigo-500 dark:to-purple-600 dark:hover:from-indigo-600 dark:hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 ring-1 ring-white/10 dark:ring-white/10"
+            className="p-2 rounded-full transition-colors text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
             aria-label="Refresh"
             title="Refresh"
           >
@@ -272,11 +272,10 @@ export default function App() {
               <path d="M21 12a9 9 0 1 1-3-6.7"/>
               <path d="M21 3v6h-6"/>
             </svg>
-            <span className="hidden sm:inline">Refresh</span>
           </button>
           <button
             onClick={openSettings}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 dark:from-indigo-500 dark:to-purple-600 dark:hover:from-indigo-600 dark:hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 ring-1 ring-white/10 dark:ring-white/10"
+            className="p-2 rounded-full transition-colors text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
             aria-label="Open settings"
             title="Settings"
           >
@@ -294,11 +293,10 @@ export default function App() {
               <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
               <circle cx="12" cy="12" r="3"/>
             </svg>
-            <span className="hidden sm:inline">Settings</span>
           </button>
           <button
             onClick={toggleTheme}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 dark:from-indigo-500 dark:to-purple-600 dark:hover:from-indigo-600 dark:hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 ring-1 ring-white/10 dark:ring-white/10"
+            className="p-2 rounded-full transition-colors text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
             aria-label="Toggle theme"
             title={
               theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
@@ -343,9 +341,6 @@ export default function App() {
                 <path d="M21 5h-4"/>
               </svg>
             )}
-            <span className="hidden sm:inline font-semibold">
-              {theme === "dark" ? "Light" : "Dark"}
-            </span>
           </button>
         </div>
       </header>
