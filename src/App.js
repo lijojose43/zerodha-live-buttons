@@ -195,6 +195,23 @@ export default function App() {
     setStocks((prev) => (prev || []).filter((s) => s.id !== id));
   };
 
+  const renameStock = (id, raw) => {
+    const sym = String(raw || "").toUpperCase().trim();
+    if (!sym) {
+      removeStock(id);
+      return;
+    }
+    setStocks((prev) => {
+      const list = prev || [];
+      if (list.some((x) => x.id !== id && (x.instrumentKey || x.symbol) === sym)) {
+        return list.filter((x) => x.id !== id);
+      }
+      return list.map((x) =>
+        x.id === id ? { ...x, symbol: sym, instrumentKey: sym, id: sym } : x
+      );
+    });
+  };
+
   useEffect(() => {
     localStorage.setItem("capitalTotal", String(capitalTotal || 0));
   }, [capitalTotal]);
@@ -213,6 +230,21 @@ export default function App() {
     try {
       localStorage.setItem("stocks", JSON.stringify(stocks || []));
     } catch {}
+  }, [stocks]);
+
+  useEffect(() => {
+    const hasEmpty = (stocks || []).some(
+      (s) => !String(s.symbol || "").trim()
+    );
+    if (!hasEmpty) {
+      setStocks((prev) => {
+        const list = prev || [];
+        const stillHasEmpty = list.some((s) => !String(s.symbol || "").trim());
+        if (stillHasEmpty) return list;
+        const id = `NEW-${Date.now()}`;
+        return [...list, { id, symbol: "", instrumentKey: "" }];
+      });
+    }
   }, [stocks]);
 
   return (
@@ -300,6 +332,7 @@ export default function App() {
         {stocks.map((it) => (
           <StockCard
             key={it.id}
+            id={it.id}
             symbol={it.symbol}
             instrumentKey={it.instrumentKey || it.symbol}
             quantity={2}
@@ -308,6 +341,8 @@ export default function App() {
             leverage={leverage}
             targetPct={targetPct}
             slPct={slPct}
+            onRename={renameStock}
+            onDelete={removeStock}
           />
         ))}
       </div>

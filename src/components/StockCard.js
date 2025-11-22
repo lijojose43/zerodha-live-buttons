@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ZerodhaLivePriceButton from "./ZerodhaLivePriceButton";
 
 export default function StockCard({
+  id,
   // UI display symbol (trading symbol)
   symbol,
   // Upstox instrument key used for API; if not provided, fallback to `symbol`
@@ -14,20 +15,22 @@ export default function StockCard({
   leverage = 5,
   targetPct = 1,
   slPct = 0.5,
+  onRename,
+  onDelete,
 }) {
   const [ltp, setLtp] = useState(0);
-  const [ltpInput, setLtpInput] = useState('');
+  const [ltpInput, setLtpInput] = useState("");
   const [ltpStatus, setLtpStatus] = useState("manual"); // manual | ok | error
-  
+
   // Custom target and SL prices (null means use calculated values)
   const [customBuyTarget, setCustomBuyTarget] = useState(null);
-  const [customBuyTargetInput, setCustomBuyTargetInput] = useState('');
+  const [customBuyTargetInput, setCustomBuyTargetInput] = useState("");
   const [customBuySL, setCustomBuySL] = useState(null);
-  const [customBuySLInput, setCustomBuySLInput] = useState('');
+  const [customBuySLInput, setCustomBuySLInput] = useState("");
   const [customSellTarget, setCustomSellTarget] = useState(null);
-  const [customSellTargetInput, setCustomSellTargetInput] = useState('');
+  const [customSellTargetInput, setCustomSellTargetInput] = useState("");
   const [customSellSL, setCustomSellSL] = useState(null);
-  const [customSellSLInput, setCustomSellSLInput] = useState('');
+  const [customSellSLInput, setCustomSellSLInput] = useState("");
   const roundToTick = (p) => {
     if (!tickSize || tickSize <= 0) return Number(p.toFixed(2));
     return Math.round(p / tickSize) * tickSize;
@@ -37,7 +40,9 @@ export default function StockCard({
   // Supports forms like 'NSE_EQ|RELIANCE' or 'NSE_EQ:RELIANCE'.
   const instrumentKey = useMemo(() => {
     const base = instrumentKeyProp ?? symbol;
-    return String(base || "").toUpperCase().trim();
+    return String(base || "")
+      .toUpperCase()
+      .trim();
   }, [instrumentKeyProp, symbol]);
 
   // Derive a trading symbol for Zerodha Publisher buttons from the instrument_key
@@ -45,9 +50,17 @@ export default function StockCard({
   const tradingSymbol = useMemo(() => {
     const raw = String(instrumentKey || symbol || "").trim();
     const afterPipe = raw.includes("|") ? raw.split("|").pop() : raw;
-    const afterColon = afterPipe.includes(":") ? afterPipe.split(":").pop() : afterPipe;
+    const afterColon = afterPipe.includes(":")
+      ? afterPipe.split(":").pop()
+      : afterPipe;
     return String(afterColon || "").toUpperCase();
   }, [instrumentKey, symbol]);
+
+  // Local input state for symbol name editing
+  const [nameInput, setNameInput] = useState(String(symbol || ""));
+  useEffect(() => {
+    setNameInput(String(symbol || ""));
+  }, [symbol]);
 
   // Live price fetching is disabled (Upstox removed). Manual entry enabled.
   // Load saved LTP and custom prices from localStorage on instrument change
@@ -60,28 +73,34 @@ export default function StockCard({
         setLtpInput(String(n));
       } else {
         setLtp(0);
-        setLtpInput('');
+        setLtpInput("");
       }
-      
+
       // Load custom target and SL values
-      const savedBuyTarget = window.localStorage.getItem(`buyTarget:${instrumentKey}`);
+      const savedBuyTarget = window.localStorage.getItem(
+        `buyTarget:${instrumentKey}`
+      );
       const savedBuySL = window.localStorage.getItem(`buySL:${instrumentKey}`);
-      const savedSellTarget = window.localStorage.getItem(`sellTarget:${instrumentKey}`);
-      const savedSellSL = window.localStorage.getItem(`sellSL:${instrumentKey}`);
-      
+      const savedSellTarget = window.localStorage.getItem(
+        `sellTarget:${instrumentKey}`
+      );
+      const savedSellSL = window.localStorage.getItem(
+        `sellSL:${instrumentKey}`
+      );
+
       const buyTargetVal = savedBuyTarget ? Number(savedBuyTarget) : null;
       const buySLVal = savedBuySL ? Number(savedBuySL) : null;
       const sellTargetVal = savedSellTarget ? Number(savedSellTarget) : null;
       const sellSLVal = savedSellSL ? Number(savedSellSL) : null;
-      
+
       setCustomBuyTarget(buyTargetVal);
-      setCustomBuyTargetInput(buyTargetVal ? String(buyTargetVal) : '');
+      setCustomBuyTargetInput(buyTargetVal ? String(buyTargetVal) : "");
       setCustomBuySL(buySLVal);
-      setCustomBuySLInput(buySLVal ? String(buySLVal) : '');
+      setCustomBuySLInput(buySLVal ? String(buySLVal) : "");
       setCustomSellTarget(sellTargetVal);
-      setCustomSellTargetInput(sellTargetVal ? String(sellTargetVal) : '');
+      setCustomSellTargetInput(sellTargetVal ? String(sellTargetVal) : "");
       setCustomSellSL(sellSLVal);
-      setCustomSellSLInput(sellSLVal ? String(sellSLVal) : '');
+      setCustomSellSLInput(sellSLVal ? String(sellSLVal) : "");
     }
     setLtpStatus("manual");
   }, [instrumentKey]);
@@ -95,31 +114,39 @@ export default function StockCard({
     [ltp, capitalPerStock]
   );
   const effectiveQty = autoQty || quantity || 1;
-  const calculatedBuyTarget = ltp ? roundToTick(ltp * (1 + (targetPct || 0) / 100)) : 0;
+  const calculatedBuyTarget = ltp
+    ? roundToTick(ltp * (1 + (targetPct || 0) / 100))
+    : 0;
   const calculatedBuySL = ltp ? roundToTick(ltp * (1 - (slPct || 0) / 100)) : 0;
-  const calculatedSellTarget = ltp ? roundToTick(ltp * (1 - (targetPct || 0) / 100)) : 0;
-  const calculatedSellSL = ltp ? roundToTick(ltp * (1 + (slPct || 0) / 100)) : 0;
-  
+  const calculatedSellTarget = ltp
+    ? roundToTick(ltp * (1 - (targetPct || 0) / 100))
+    : 0;
+  const calculatedSellSL = ltp
+    ? roundToTick(ltp * (1 + (slPct || 0) / 100))
+    : 0;
+
   // Update all calculated values when LTP changes - clear custom overrides
   useEffect(() => {
     if (ltp > 0) {
       // Clear custom values and their input states when LTP changes
       // This ensures all values update based on the new LTP
       setCustomBuyTarget(null);
-      setCustomBuyTargetInput('');
+      setCustomBuyTargetInput("");
       setCustomBuySL(null);
-      setCustomBuySLInput('');
+      setCustomBuySLInput("");
       setCustomSellTarget(null);
-      setCustomSellTargetInput('');
+      setCustomSellTargetInput("");
       setCustomSellSL(null);
-      setCustomSellSLInput('');
+      setCustomSellSLInput("");
     }
   }, [ltp]);
 
   // Use custom values if set, otherwise use calculated values
-  const buyTarget = customBuyTarget !== null ? customBuyTarget : calculatedBuyTarget;
+  const buyTarget =
+    customBuyTarget !== null ? customBuyTarget : calculatedBuyTarget;
   const buySL = customBuySL !== null ? customBuySL : calculatedBuySL;
-  const sellTarget = customSellTarget !== null ? customSellTarget : calculatedSellTarget;
+  const sellTarget =
+    customSellTarget !== null ? customSellTarget : calculatedSellTarget;
   const sellSL = customSellSL !== null ? customSellSL : calculatedSellSL;
 
   // Brokerage/charges calculation based on provided PHP logic
@@ -183,35 +210,87 @@ export default function StockCard({
       : 0;
 
   const openTradingView = () => {
-    // Determine a TradingView symbol. Prefer provided exchange, else fallback to plain symbol.
-    const ex = (exchange || "").toUpperCase();
-    const tvExchange = ex || "NSE";
-    const candidates = [`${symbol}`, `${symbol}`];
-    const url = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(
-      candidates[0]
+    const sym = String(symbol || "").trim();
+    if (!sym) return;
+    const deep = `tradingview://chart?symbol=${encodeURIComponent(sym)}`;
+    const web = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(
+      sym
     )}&interval=5`;
-    window.open(url, "_blank", "noopener");
+    const ua = (
+      typeof navigator !== "undefined" ? navigator.userAgent : ""
+    ).toLowerCase();
+    const isMobile = /iphone|ipad|ipod|android/.test(ua);
+    if (isMobile) {
+      // Try to open the app, then fallback
+      window.location.href = deep;
+      setTimeout(() => {
+        window.open(web, "_blank", "noopener");
+      }, 800);
+    } else {
+      window.open(web, "_blank", "noopener");
+    }
   };
 
   return (
     <div className="rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full max-w-sm">
       <div className="grid grid-cols-2 gap-4">
         <div className="self-start">
-          <button
-            type="button"
-            onClick={openTradingView}
-            className="text-left text-lg font-semibold tracking-wide hover:underline cursor-pointer"
-            title="Open 5m TradingView chart"
-          >
-            {symbol}
-          </button>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {exchange}
-          </p>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value.toUpperCase())}
+              onBlur={() => {
+                const v = String(nameInput || "")
+                  .toUpperCase()
+                  .trim();
+                if (!v) {
+                  onDelete && id && onDelete(id);
+                } else if (onRename && id) {
+                  onRename(id, v);
+                }
+                if (typeof window !== "undefined") {
+                  window.location.reload();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+              placeholder="SYMBOL"
+              className="text-left text-lg font-semibold tracking-wide bg-transparent border-b border-transparent focus:border-slate-400 outline-none"
+            />
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+            <span>{exchange}</span>
+            <button
+              type="button"
+              onClick={openTradingView}
+              className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+              title="Open in TradingView"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3 w-3"
+              >
+                <path d="M14 3h7v7" />
+                <path d="M10 14 21 3" />
+                <path d="M21 14v7h-7" />
+                <path d="M3 10V3h7" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div className="text-right self-start justify-self-end">
           <div className="relative flex items-center">
-            <span className="text-2xl font-mono text-slate-600 dark:text-slate-400 mr-1">₹</span>
+            <span className="text-2xl font-mono text-slate-600 dark:text-slate-400 mr-1">
+              ₹
+            </span>
             <input
               type="number"
               inputMode="decimal"
@@ -228,23 +307,27 @@ export default function StockCard({
                 }
               }}
               onBlur={() => {
-                if (typeof window !== 'undefined') {
+                if (typeof window !== "undefined") {
                   if (Number.isFinite(ltp) && ltp > 0) {
-                    window.localStorage.setItem(`ltp:${instrumentKey}`, String(ltp));
+                    window.localStorage.setItem(
+                      `ltp:${instrumentKey}`,
+                      String(ltp)
+                    );
                   } else {
                     window.localStorage.removeItem(`ltp:${instrumentKey}`);
                   }
+                  window.location.reload();
                 }
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter") {
                   e.currentTarget.blur();
                 }
               }}
               step={tickSize || 0.05}
               min="0"
               placeholder="0.00"
-              className="block w-28 h-8 leading-8 p-0 text-right text-2xl font-mono bg-transparent appearance-none focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              className="block w-24 h-8 leading-8 p-0 text-right text-2xl font-mono bg-transparent appearance-none focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
             />
           </div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -260,31 +343,46 @@ export default function StockCard({
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">TA</span>
             <div className="relative flex items-center">
-              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">₹</span>
+              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
+                ₹
+              </span>
               <input
                 type="number"
                 inputMode="decimal"
-                value={customBuyTargetInput || (customBuyTarget === null && buyTarget > 0 ? buyTarget.toFixed(2) : '')}
+                value={
+                  customBuyTargetInput ||
+                  (customBuyTarget === null && buyTarget > 0
+                    ? buyTarget.toFixed(2)
+                    : "")
+                }
                 onChange={(e) => {
                   const inputValue = e.target.value;
                   const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
                   if (regex.test(inputValue)) {
                     setCustomBuyTargetInput(inputValue);
                     const val = Number(inputValue);
-                    setCustomBuyTarget(Number.isFinite(val) && val > 0 ? val : null);
+                    setCustomBuyTarget(
+                      Number.isFinite(val) && val > 0 ? val : null
+                    );
                   }
                 }}
                 onBlur={() => {
-                  if (typeof window !== 'undefined') {
+                  if (typeof window !== "undefined") {
                     if (customBuyTarget !== null && customBuyTarget > 0) {
-                      window.localStorage.setItem(`buyTarget:${instrumentKey}`, String(customBuyTarget));
+                      window.localStorage.setItem(
+                        `buyTarget:${instrumentKey}`,
+                        String(customBuyTarget)
+                      );
                     } else {
-                      window.localStorage.removeItem(`buyTarget:${instrumentKey}`);
+                      window.localStorage.removeItem(
+                        `buyTarget:${instrumentKey}`
+                      );
                     }
+                    window.location.reload();
                   }
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     e.currentTarget.blur();
                   }
                 }}
@@ -298,31 +396,42 @@ export default function StockCard({
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">SL</span>
             <div className="relative flex items-center">
-              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">₹</span>
+              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
+                ₹
+              </span>
               <input
                 type="number"
                 inputMode="decimal"
-                value={customBuySLInput || (customBuySL === null && buySL > 0 ? buySL.toFixed(2) : '')}
+                value={
+                  customBuySLInput ||
+                  (customBuySL === null && buySL > 0 ? buySL.toFixed(2) : "")
+                }
                 onChange={(e) => {
                   const inputValue = e.target.value;
                   const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
                   if (regex.test(inputValue)) {
                     setCustomBuySLInput(inputValue);
                     const val = Number(inputValue);
-                    setCustomBuySL(Number.isFinite(val) && val > 0 ? val : null);
+                    setCustomBuySL(
+                      Number.isFinite(val) && val > 0 ? val : null
+                    );
                   }
                 }}
                 onBlur={() => {
-                  if (typeof window !== 'undefined') {
+                  if (typeof window !== "undefined") {
                     if (customBuySL !== null && customBuySL > 0) {
-                      window.localStorage.setItem(`buySL:${instrumentKey}`, String(customBuySL));
+                      window.localStorage.setItem(
+                        `buySL:${instrumentKey}`,
+                        String(customBuySL)
+                      );
                     } else {
                       window.localStorage.removeItem(`buySL:${instrumentKey}`);
                     }
+                    window.location.reload();
                   }
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     e.currentTarget.blur();
                   }
                 }}
@@ -350,31 +459,46 @@ export default function StockCard({
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">TA</span>
             <div className="relative flex items-center">
-              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">₹</span>
+              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
+                ₹
+              </span>
               <input
                 type="number"
                 inputMode="decimal"
-                value={customSellTargetInput || (customSellTarget === null && sellTarget > 0 ? sellTarget.toFixed(2) : '')}
+                value={
+                  customSellTargetInput ||
+                  (customSellTarget === null && sellTarget > 0
+                    ? sellTarget.toFixed(2)
+                    : "")
+                }
                 onChange={(e) => {
                   const inputValue = e.target.value;
                   const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
                   if (regex.test(inputValue)) {
                     setCustomSellTargetInput(inputValue);
                     const val = Number(inputValue);
-                    setCustomSellTarget(Number.isFinite(val) && val > 0 ? val : null);
+                    setCustomSellTarget(
+                      Number.isFinite(val) && val > 0 ? val : null
+                    );
                   }
                 }}
                 onBlur={() => {
-                  if (typeof window !== 'undefined') {
+                  if (typeof window !== "undefined") {
                     if (customSellTarget !== null && customSellTarget > 0) {
-                      window.localStorage.setItem(`sellTarget:${instrumentKey}`, String(customSellTarget));
+                      window.localStorage.setItem(
+                        `sellTarget:${instrumentKey}`,
+                        String(customSellTarget)
+                      );
                     } else {
-                      window.localStorage.removeItem(`sellTarget:${instrumentKey}`);
+                      window.localStorage.removeItem(
+                        `sellTarget:${instrumentKey}`
+                      );
                     }
+                    window.location.reload();
                   }
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     e.currentTarget.blur();
                   }
                 }}
@@ -388,31 +512,42 @@ export default function StockCard({
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">SL</span>
             <div className="relative flex items-center">
-              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">₹</span>
+              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
+                ₹
+              </span>
               <input
                 type="number"
                 inputMode="decimal"
-                value={customSellSLInput || (customSellSL === null && sellSL > 0 ? sellSL.toFixed(2) : '')}
+                value={
+                  customSellSLInput ||
+                  (customSellSL === null && sellSL > 0 ? sellSL.toFixed(2) : "")
+                }
                 onChange={(e) => {
                   const inputValue = e.target.value;
                   const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
                   if (regex.test(inputValue)) {
                     setCustomSellSLInput(inputValue);
                     const val = Number(inputValue);
-                    setCustomSellSL(Number.isFinite(val) && val > 0 ? val : null);
+                    setCustomSellSL(
+                      Number.isFinite(val) && val > 0 ? val : null
+                    );
                   }
                 }}
                 onBlur={() => {
-                  if (typeof window !== 'undefined') {
+                  if (typeof window !== "undefined") {
                     if (customSellSL !== null && customSellSL > 0) {
-                      window.localStorage.setItem(`sellSL:${instrumentKey}`, String(customSellSL));
+                      window.localStorage.setItem(
+                        `sellSL:${instrumentKey}`,
+                        String(customSellSL)
+                      );
                     } else {
                       window.localStorage.removeItem(`sellSL:${instrumentKey}`);
                     }
+                    window.location.reload();
                   }
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     e.currentTarget.blur();
                   }
                 }}
