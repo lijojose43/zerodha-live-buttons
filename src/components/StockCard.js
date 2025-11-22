@@ -212,10 +212,10 @@ export default function StockCard({
   const openTradingView = () => {
     const sym = String(symbol || "").trim();
     if (!sym) return;
-    const deep = `tradingview://chart?symbol=${encodeURIComponent(sym)}`;
-    const web = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(
-      sym
-    )}&interval=5`;
+    // Use exchange-prefixed TradingView symbol (e.g., NSE:RELIANCE)
+    const tvSymbol = `${String(exchange || "").toUpperCase()}:${tradingSymbol}`;
+    const deep = `tradingview://chart?symbol=${encodeURIComponent(tvSymbol)}&interval=5`;
+    const web = `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSymbol)}&interval=5`;
     const ua = (
       typeof navigator !== "undefined" ? navigator.userAgent : ""
     ).toLowerCase();

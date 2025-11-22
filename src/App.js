@@ -254,7 +254,7 @@ export default function App() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 dark:from-indigo-500 dark:to-purple-600 dark:hover:from-indigo-600 dark:hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 ring-1 ring-white/10 dark:ring-white/10"
             aria-label="Refresh"
             title="Refresh"
           >
@@ -276,7 +276,7 @@ export default function App() {
           </button>
           <button
             onClick={openSettings}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 dark:from-indigo-500 dark:to-purple-600 dark:hover:from-indigo-600 dark:hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 ring-1 ring-white/10 dark:ring-white/10"
             aria-label="Open settings"
             title="Settings"
           >
@@ -298,7 +298,7 @@ export default function App() {
           </button>
           <button
             onClick={toggleTheme}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 dark:from-indigo-500 dark:to-purple-600 dark:hover:from-indigo-600 dark:hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 ring-1 ring-white/10 dark:ring-white/10"
             aria-label="Toggle theme"
             title={
               theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
