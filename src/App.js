@@ -464,45 +464,6 @@ export default function App() {
               className="space-y-4"
             >
               <div>
-                <label className="block text-sm mb-1">Stocks</label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {stocks.map((it) => (
-                    <span
-                      key={it.id}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-700 text-sm"
-                    >
-                      <span className="font-semibold">{it.symbol}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeStock(it.id)}
-                        className="ml-1 text-slate-500 hover:text-red-600"
-                        title="Remove"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={newStockSymbol}
-                      onChange={(e) => setNewStockSymbol(e.target.value)}
-                      placeholder="Enter symbol e.g. RELIANCE"
-                      className="w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => addStock(newStockSymbol)}
-                    className="rounded-md px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-              <div>
                 <label className="block text-sm mb-1" htmlFor="capital">
                   Capital (total)
                 </label>
