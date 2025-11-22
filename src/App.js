@@ -253,6 +253,28 @@ export default function App() {
         <h1 className="text-2xl font-bold">Zerodha Live</h1>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
+            aria-label="Refresh"
+            title="Refresh"
+          >
+            {/* Refresh icon */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+            >
+              <path d="M21 12a9 9 0 1 1-3-6.7"/>
+              <path d="M21 3v6h-6"/>
+            </svg>
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+          <button
             onClick={openSettings}
             className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
             aria-label="Open settings"
@@ -276,7 +298,7 @@ export default function App() {
           </button>
           <button
             onClick={toggleTheme}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 dark:from-indigo-500 dark:to-purple-600 dark:hover:from-indigo-600 dark:hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
             aria-label="Toggle theme"
             title={
               theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
@@ -292,7 +314,7 @@ export default function App() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="h-5 w-5 animate-pulse"
+                className="h-5 w-5"
               >
                 <circle cx="12" cy="12" r="4"/>
                 <path d="M12 2v2"/>
@@ -314,7 +336,7 @@ export default function App() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="h-5 w-5 animate-pulse"
+                className="h-5 w-5"
               >
                 <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
                 <path d="M19 3v4"/>

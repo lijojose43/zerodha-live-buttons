@@ -16,6 +16,9 @@ export default function ZerodhaLivePriceButton({
   slPct = 0.5,
   // Live price from parent (StockCard)
   currentPrice = null,
+  // Optional overrides: absolute prices to use instead of percent-based ones
+  overrideTargetPrice = null,
+  overrideSLTrigger = null,
 }) {
   const { ready, refreshButtons, kite } = useZerodhaPublisher();
   const hiddenLinkRef = useRef(null);
@@ -154,9 +157,13 @@ export default function ZerodhaLivePriceButton({
       }
 
       if (txn === "BUY") {
-        const slTrigger = roundToTick(ltp * (1 - (slPct || 0) / 100)); // SL below
+        const slTrigger = Number.isFinite(overrideSLTrigger) && overrideSLTrigger > 0
+          ? roundToTick(overrideSLTrigger)
+          : roundToTick(ltp * (1 - (slPct || 0) / 100)); // SL below
         const slLimit = roundToTick(slTrigger - (tickSize || 0.05)); // unused when using SL-M
-        const targetPrice = roundToTick(ltp * (1 + (targetPct || 0) / 100)); // Target above
+        const targetPrice = Number.isFinite(overrideTargetPrice) && overrideTargetPrice > 0
+          ? roundToTick(overrideTargetPrice)
+          : roundToTick(ltp * (1 + (targetPct || 0) / 100)); // Target above
         if (hasProgrammatic) {
           const legs = [
             { ...common, transaction_type: "BUY", order_type: "MARKET" },
@@ -254,9 +261,13 @@ export default function ZerodhaLivePriceButton({
           return;
         }
       } else if (txn === "SELL") {
-        const slTrigger = roundToTick(ltp * (1 + (slPct || 0) / 100)); // SL above
+        const slTrigger = Number.isFinite(overrideSLTrigger) && overrideSLTrigger > 0
+          ? roundToTick(overrideSLTrigger)
+          : roundToTick(ltp * (1 + (slPct || 0) / 100)); // SL above
         const slLimit = roundToTick(slTrigger + (tickSize || 0.05)); // unused when using SL-M
-        const targetPrice = roundToTick(ltp * (1 - (targetPct || 0) / 100)); // Target below
+        const targetPrice = Number.isFinite(overrideTargetPrice) && overrideTargetPrice > 0
+          ? roundToTick(overrideTargetPrice)
+          : roundToTick(ltp * (1 - (targetPct || 0) / 100)); // Target below
         if (hasProgrammatic) {
           const legs = [
             { ...common, transaction_type: "SELL", order_type: "MARKET" },

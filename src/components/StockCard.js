@@ -220,15 +220,12 @@ export default function StockCard({
       typeof navigator !== "undefined" ? navigator.userAgent : ""
     ).toLowerCase();
     const isMobile = /iphone|ipad|ipod|android/.test(ua);
-    if (isMobile) {
-      // Try to open the app, then fallback
-      window.location.href = deep;
-      setTimeout(() => {
-        window.open(web, "_blank", "noopener");
-      }, 800);
-    } else {
-      window.open(web, "_blank", "noopener");
-    }
+    // Prefer opening the TradingView app (deep link). If it fails, fallback in the same tab.
+    window.location.href = deep;
+    setTimeout(() => {
+      // Fallback to web in the SAME tab (no new tab)
+      window.location.href = web;
+    }, 800);
   };
 
   return (
@@ -248,9 +245,6 @@ export default function StockCard({
                   onDelete && id && onDelete(id);
                 } else if (onRename && id) {
                   onRename(id, v);
-                }
-                if (typeof window !== "undefined") {
-                  window.location.reload();
                 }
               }}
               onKeyDown={(e) => {
@@ -306,17 +300,19 @@ export default function StockCard({
                   setLtpStatus("manual");
                 }
               }}
-              onBlur={() => {
+              onBlur={(e) => {
                 if (typeof window !== "undefined") {
-                  if (Number.isFinite(ltp) && ltp > 0) {
+                  const val = Number(e.currentTarget.value);
+                  if (Number.isFinite(val) && val > 0) {
+                    setLtp(val);
+                    setLtpInput(String(val));
                     window.localStorage.setItem(
                       `ltp:${instrumentKey}`,
-                      String(ltp)
+                      String(val)
                     );
                   } else {
                     window.localStorage.removeItem(`ltp:${instrumentKey}`);
                   }
-                  window.location.reload();
                 }
               }}
               onKeyDown={(e) => {
@@ -366,19 +362,19 @@ export default function StockCard({
                     );
                   }
                 }}
-                onBlur={() => {
+                onBlur={(e) => {
                   if (typeof window !== "undefined") {
-                    if (customBuyTarget !== null && customBuyTarget > 0) {
+                    const val = Number(e.currentTarget.value);
+                    if (Number.isFinite(val) && val > 0) {
+                      setCustomBuyTarget(val);
+                      setCustomBuyTargetInput(String(val));
                       window.localStorage.setItem(
                         `buyTarget:${instrumentKey}`,
-                        String(customBuyTarget)
+                        String(val)
                       );
                     } else {
-                      window.localStorage.removeItem(
-                        `buyTarget:${instrumentKey}`
-                      );
+                      window.localStorage.removeItem(`buyTarget:${instrumentKey}`);
                     }
-                    window.location.reload();
                   }
                 }}
                 onKeyDown={(e) => {
@@ -417,17 +413,19 @@ export default function StockCard({
                     );
                   }
                 }}
-                onBlur={() => {
+                onBlur={(e) => {
                   if (typeof window !== "undefined") {
-                    if (customBuySL !== null && customBuySL > 0) {
+                    const val = Number(e.currentTarget.value);
+                    if (Number.isFinite(val) && val > 0) {
+                      setCustomBuySL(val);
+                      setCustomBuySLInput(String(val));
                       window.localStorage.setItem(
                         `buySL:${instrumentKey}`,
-                        String(customBuySL)
+                        String(val)
                       );
                     } else {
                       window.localStorage.removeItem(`buySL:${instrumentKey}`);
                     }
-                    window.location.reload();
                   }
                 }}
                 onKeyDown={(e) => {
@@ -457,6 +455,57 @@ export default function StockCard({
         </div>
         <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
           <div className="flex justify-between text-base">
+            <span className="text-slate-600 dark:text-slate-400">SL</span>
+            <div className="relative flex items-center">
+              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
+                ₹
+              </span>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={
+                  customSellSLInput ||
+                  (customSellSL === null && sellSL > 0 ? sellSL.toFixed(2) : "")
+                }
+                onChange={(e) => {
+                  const inputValue = e.target.value;
+                  const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
+                  if (regex.test(inputValue)) {
+                    setCustomSellSLInput(inputValue);
+                    const val = Number(inputValue);
+                    setCustomSellSL(
+                      Number.isFinite(val) && val > 0 ? val : null
+                    );
+                  }
+                }}
+                onBlur={(e) => {
+                  if (typeof window !== "undefined") {
+                    const val = Number(e.currentTarget.value);
+                    if (Number.isFinite(val) && val > 0) {
+                      setCustomSellSL(val);
+                      setCustomSellSLInput(String(val));
+                      window.localStorage.setItem(
+                        `sellSL:${instrumentKey}`,
+                        String(val)
+                      );
+                    } else {
+                      window.localStorage.removeItem(`sellSL:${instrumentKey}`);
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                step={tickSize || 0.05}
+                min="0"
+                placeholder="0.00"
+                className="w-16 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              />
+            </div>
+          </div>
+          <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">TA</span>
             <div className="relative flex items-center">
               <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
@@ -482,68 +531,19 @@ export default function StockCard({
                     );
                   }
                 }}
-                onBlur={() => {
+                onBlur={(e) => {
                   if (typeof window !== "undefined") {
-                    if (customSellTarget !== null && customSellTarget > 0) {
+                    const val = Number(e.currentTarget.value);
+                    if (Number.isFinite(val) && val > 0) {
+                      setCustomSellTarget(val);
+                      setCustomSellTargetInput(String(val));
                       window.localStorage.setItem(
                         `sellTarget:${instrumentKey}`,
-                        String(customSellTarget)
+                        String(val)
                       );
                     } else {
-                      window.localStorage.removeItem(
-                        `sellTarget:${instrumentKey}`
-                      );
+                      window.localStorage.removeItem(`sellTarget:${instrumentKey}`);
                     }
-                    window.location.reload();
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.currentTarget.blur();
-                  }
-                }}
-                step={tickSize || 0.05}
-                min="0"
-                placeholder="0.00"
-                className="w-16 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-              />
-            </div>
-          </div>
-          <div className="flex justify-between text-base">
-            <span className="text-slate-600 dark:text-slate-400">SL</span>
-            <div className="relative flex items-center">
-              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
-                ₹
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={
-                  customSellSLInput ||
-                  (customSellSL === null && sellSL > 0 ? sellSL.toFixed(2) : "")
-                }
-                onChange={(e) => {
-                  const inputValue = e.target.value;
-                  const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
-                  if (regex.test(inputValue)) {
-                    setCustomSellSLInput(inputValue);
-                    const val = Number(inputValue);
-                    setCustomSellSL(
-                      Number.isFinite(val) && val > 0 ? val : null
-                    );
-                  }
-                }}
-                onBlur={() => {
-                  if (typeof window !== "undefined") {
-                    if (customSellSL !== null && customSellSL > 0) {
-                      window.localStorage.setItem(
-                        `sellSL:${instrumentKey}`,
-                        String(customSellSL)
-                      );
-                    } else {
-                      window.localStorage.removeItem(`sellSL:${instrumentKey}`);
-                    }
-                    window.location.reload();
                   }
                 }}
                 onKeyDown={(e) => {
@@ -583,6 +583,8 @@ export default function StockCard({
           currentPrice={ltp}
           targetPct={targetPct}
           slPct={slPct}
+          overrideTargetPrice={buyTarget}
+          overrideSLTrigger={buySL}
           compact
           className="justify-center w-full"
         />
@@ -595,6 +597,8 @@ export default function StockCard({
           currentPrice={ltp}
           targetPct={targetPct}
           slPct={slPct}
+          overrideTargetPrice={sellTarget}
+          overrideSLTrigger={sellSL}
           compact
           className="justify-center w-full"
         />
