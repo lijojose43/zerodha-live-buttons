@@ -24,6 +24,7 @@ export default function ZerodhaLivePriceButton({
   const hiddenLinkRef = useRef(null);
   const wsRef = useRef(null);
   const activeSymbolRef = useRef(null);
+  const viewportRestoreRef = useRef(null);
   const [price, setPrice] = useState(null);
   const [lastPrice, setLastPrice] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -62,6 +63,7 @@ export default function ZerodhaLivePriceButton({
       try {
         setBusy(false);
         setLastClickTime(0);
+        restoreViewportMode();
       } catch {}
       window.removeEventListener('focus', onFocus, true);
       document.removeEventListener('visibilitychange', onVisibility, true);
@@ -83,11 +85,30 @@ export default function ZerodhaLivePriceButton({
     };
   };
 
-  // Function to temporarily request desktop site mode
+  const restoreViewportMode = () => {
+    const restoreState = viewportRestoreRef.current;
+    if (!restoreState) return;
+    const { viewportEl, originalContent } = restoreState;
+    try {
+      if (viewportEl) {
+        if (originalContent) viewportEl.setAttribute('content', originalContent);
+        else viewportEl.setAttribute('content', 'width=device-width, initial-scale=1');
+      }
+    } catch {}
+    viewportRestoreRef.current = null;
+  };
+
+  useEffect(() => () => {
+    restoreViewportMode();
+  }, []);
+
+  // Request desktop site mode and keep it until user returns to this app.
   const requestDesktopMode = () => {
-    // Store original viewport meta tag
+    if (viewportRestoreRef.current) return;
     const originalViewport = document.querySelector('meta[name="viewport"]');
-    const originalContent = originalViewport ? originalViewport.getAttribute('content') : null;
+    const originalContent = originalViewport
+      ? originalViewport.getAttribute('content')
+      : null;
     
     // Set desktop mode viewport
     if (originalViewport) {
@@ -98,15 +119,11 @@ export default function ZerodhaLivePriceButton({
       meta.content = 'width=1024, initial-scale=1.0, user-scalable=yes';
       document.head.appendChild(meta);
     }
-    
-    // Restore original viewport after a delay (when Kite page loads)
-    setTimeout(() => {
-      if (originalViewport && originalContent) {
-        originalViewport.setAttribute('content', originalContent);
-      } else if (originalViewport) {
-        originalViewport.setAttribute('content', 'width=device-width, initial-scale=1');
-      }
-    }, 3000); // 3 seconds delay to allow Kite page to load
+
+    viewportRestoreRef.current = {
+      viewportEl: originalViewport || document.querySelector('meta[name="viewport"]'),
+      originalContent,
+    };
   };
 
   const handleClick = () => {
