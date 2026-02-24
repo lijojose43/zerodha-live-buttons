@@ -21,11 +21,12 @@ Your Zerodha Live Price Buttons app has been successfully converted to a Progres
 - Theme color and viewport optimization
 - Service worker registration
 
-### 4. **App Icons** (SVG placeholders created)
-- `icon-192x192.svg` - Standard PWA icon
-- `icon-512x512.svg` - Large PWA icon
-- `apple-touch-icon.svg` - iOS home screen icon
-- `favicon-32x32.svg` & `favicon-16x16.svg` - Browser favicons
+### 4. **App Icons** (Production PNG + ICO generated)
+- `icon-72x72.png` through `icon-512x512.png` - Standard PWA icon sizes
+- `icon-192x192-maskable.png` & `icon-512x512-maskable.png` - Maskable icons for Android launchers
+- `apple-touch-icon.png` - iOS home screen icon
+- `favicon.ico`, `favicon-32x32.png`, `favicon-16x16.png` - Browser favicons
+- `mstile-150x150.png` - Windows tile icon
 
 ### 5. **PWA Components**
 - **PWAInstallButton**: Shows install prompt when available
@@ -58,13 +59,12 @@ npx serve -s build
 
 ## 🔧 Production Recommendations
 
-### 1. **Convert Icons to PNG**
-Replace SVG icons with proper PNG files:
+### 1. **Regenerate Icons**
+Regenerate icon assets from the source script when needed:
 ```bash
-# Use tools like ImageMagick or online converters
-convert icon-192x192.svg icon-192x192.png
-convert icon-512x512.svg icon-512x512.png
-# Update manifest.json to reference .png files
+python3 public/generate_pwa_icons.py
+# or
+node public/create-icons.js
 ```
 
 ### 2. **HTTPS Requirement**
@@ -94,7 +94,7 @@ If you want push notifications:
 ## 🚀 Next Steps
 
 1. Test the PWA thoroughly on different devices
-2. Replace placeholder icons with your brand icons
+2. Review icon appearance on Android and iOS home screens
 3. Customize the theme colors in manifest.json
 4. Consider adding push notifications for price alerts
 5. Optimize caching strategy for your specific use case
