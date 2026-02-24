@@ -24,7 +24,6 @@ export default function ZerodhaLivePriceButton({
   const hiddenLinkRef = useRef(null);
   const wsRef = useRef(null);
   const activeSymbolRef = useRef(null);
-  const viewportRestoreRef = useRef(null);
   const [price, setPrice] = useState(null);
   const [lastPrice, setLastPrice] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -63,7 +62,6 @@ export default function ZerodhaLivePriceButton({
       try {
         setBusy(false);
         setLastClickTime(0);
-        restoreViewportMode();
       } catch {}
       window.removeEventListener('focus', onFocus, true);
       document.removeEventListener('visibilitychange', onVisibility, true);
@@ -85,47 +83,6 @@ export default function ZerodhaLivePriceButton({
     };
   };
 
-  const restoreViewportMode = () => {
-    const restoreState = viewportRestoreRef.current;
-    if (!restoreState) return;
-    const { viewportEl, originalContent } = restoreState;
-    try {
-      if (viewportEl) {
-        if (originalContent) viewportEl.setAttribute('content', originalContent);
-        else viewportEl.setAttribute('content', 'width=device-width, initial-scale=1');
-      }
-    } catch {}
-    viewportRestoreRef.current = null;
-  };
-
-  useEffect(() => () => {
-    restoreViewportMode();
-  }, []);
-
-  // Request desktop site mode and keep it until user returns to this app.
-  const requestDesktopMode = () => {
-    if (viewportRestoreRef.current) return;
-    const originalViewport = document.querySelector('meta[name="viewport"]');
-    const originalContent = originalViewport
-      ? originalViewport.getAttribute('content')
-      : null;
-    
-    // Set desktop mode viewport
-    if (originalViewport) {
-      originalViewport.setAttribute('content', 'width=1024, initial-scale=1.0, user-scalable=yes');
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = 'viewport';
-      meta.content = 'width=1024, initial-scale=1.0, user-scalable=yes';
-      document.head.appendChild(meta);
-    }
-
-    viewportRestoreRef.current = {
-      viewportEl: originalViewport || document.querySelector('meta[name="viewport"]'),
-      originalContent,
-    };
-  };
-
   const handleClick = () => {
     const now = Date.now();
     // Prevent duplicate clicks within 2 seconds
@@ -133,10 +90,7 @@ export default function ZerodhaLivePriceButton({
       console.log('Duplicate click prevented - order already in progress');
       return;
     }
-    
-    // Request desktop mode before opening Kite
-    requestDesktopMode();
-    
+
     setLastClickTime(now);
     // Prefer programmatic Publisher API if available so we can place a 3-leg basket
     try {
@@ -397,7 +351,6 @@ export default function ZerodhaLivePriceButton({
         href="#"
         style={{ display: "none" }}
         className="kite-button"
-        onClick={requestDesktopMode}
         data-kite="v4mpvs6exp4garzl"
         data-exchange={exchange}
         data-tradingsymbol={symbol}
