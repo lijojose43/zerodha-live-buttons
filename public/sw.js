@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zerodha-live-v1';
+const CACHE_NAME = 'zerodha-live-v2';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
@@ -8,6 +8,7 @@ const urlsToCache = [
 
 // Install event - cache resources
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -22,6 +23,13 @@ self.addEventListener('install', (event) => {
 
 // Fetch event - serve cached content when offline
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  const requestUrl = new URL(event.request.url);
+
+  // Never proxy cross-origin traffic through app-shell fallbacks.
+  // This avoids interfering with third-party auth/login flows.
+  if (requestUrl.origin !== self.location.origin) return;
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -75,6 +83,7 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  self.clients.claim();
 });
 
 // Handle background sync for offline actions

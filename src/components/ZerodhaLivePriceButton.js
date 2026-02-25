@@ -24,17 +24,59 @@ export default function ZerodhaLivePriceButton({
   const hiddenLinkRef = useRef(null);
   const wsRef = useRef(null);
   const activeSymbolRef = useRef(null);
+  const finalizeTimerRef = useRef(null);
+  const flowCompletedRef = useRef(false);
   const [price, setPrice] = useState(null);
   const [lastPrice, setLastPrice] = useState(null);
   const [busy, setBusy] = useState(false);
   const [lastClickTime, setLastClickTime] = useState(0);
   // Removed dynamic price color changes; keep static color
 
+  const finalizeOrderFlow = (clearBasket = false) => {
+    try {
+      setBusy(false);
+      setLastClickTime(0);
+      if (clearBasket && ready && kite && typeof kite.clear === "function") {
+        kite.clear();
+      }
+    } catch {}
+  };
+
+  const clearFinalizeTimer = () => {
+    if (finalizeTimerRef.current) {
+      clearTimeout(finalizeTimerRef.current);
+      finalizeTimerRef.current = null;
+    }
+  };
+
+  const startOrderFlow = () => {
+    flowCompletedRef.current = false;
+    clearFinalizeTimer();
+  };
+
+  const completeOrderFlow = (clearBasket = false) => {
+    if (flowCompletedRef.current) return;
+    flowCompletedRef.current = true;
+    clearFinalizeTimer();
+    finalizeOrderFlow(clearBasket);
+  };
+
+  const schedulePopupBlockedFallback = (ms = 5000) => {
+    clearFinalizeTimer();
+    finalizeTimerRef.current = setTimeout(() => {
+      completeOrderFlow(true);
+    }, ms);
+  };
+
   useEffect(() => {
     if (ready) {
       refreshButtons();
     }
   }, [ready, symbol, action, quantity, exchange]);
+
+  useEffect(() => {
+    return () => clearFinalizeTimer();
+  }, []);
 
   // Use currentPrice from parent for display and calculations
   useEffect(() => {
@@ -60,8 +102,8 @@ export default function ZerodhaLivePriceButton({
       if (cleared) return;
       cleared = true;
       try {
-        setBusy(false);
-        setLastClickTime(0);
+        // If user closes/cancels the Kite popup, clear staged basket legs.
+        completeOrderFlow(true);
       } catch {}
       window.removeEventListener('focus', onFocus, true);
       document.removeEventListener('visibilitychange', onVisibility, true);
@@ -95,11 +137,12 @@ export default function ZerodhaLivePriceButton({
     // Prefer programmatic Publisher API if available so we can place a 3-leg basket
     try {
       setBusy(true);
+      startOrderFlow();
       const hasProgrammatic = ready && !!kite && typeof kite.add === "function";
       if (!lastPrice) {
         // Fallback: trigger hidden anchor if price missing
         if (hiddenLinkRef.current) hiddenLinkRef.current.click();
-        setBusy(false);
+        completeOrderFlow(false);
         return;
       }
 
@@ -108,6 +151,7 @@ export default function ZerodhaLivePriceButton({
       const ltp = Number(lastPrice);
       if (!ltp || !isFinite(ltp)) {
         if (hiddenLinkRef.current) hiddenLinkRef.current.click();
+        completeOrderFlow(false);
         return;
       }
 
@@ -151,16 +195,18 @@ export default function ZerodhaLivePriceButton({
                 } catch {}
                 // Use link() to open basket per docs
                 const id = `kite-launch-${Date.now()}`;
-                const btn = document.createElement('button');
-                btn.id = id;
-                btn.style.display = 'none';
-                document.body.appendChild(btn);
+                const launchAnchor = document.createElement("a");
+                launchAnchor.id = id;
+                launchAnchor.href = "#";
+                launchAnchor.style.display = "none";
+                launchAnchor.target = "_blank";
+                launchAnchor.rel = "noopener noreferrer";
+                document.body.appendChild(launchAnchor);
                 try {
                   // Reset busy when the Publisher finishes (success/cancel)
                   if (typeof kite.finished === 'function') {
                     kite.finished(function () { 
-                      setBusy(false);
-                      setLastClickTime(0); // Reset click time on completion
+                      completeOrderFlow(true);
                     });
                   }
                   if (typeof kite.link === 'function') {
@@ -171,8 +217,9 @@ export default function ZerodhaLivePriceButton({
                   // Install a one-time focus/visibility handler so if user closes
                   // the Kite window, we clear the Processing state on return.
                   try { setupReturnFocusReset(); } catch {}
-                  btn.click();
-                  setTimeout(() => document.body.removeChild(btn), 1000);
+                  launchAnchor.click();
+                  schedulePopupBlockedFallback(5000);
+                  setTimeout(() => document.body.removeChild(launchAnchor), 1000);
                 }, 50);
               }, 150);
               return;
@@ -198,7 +245,7 @@ export default function ZerodhaLivePriceButton({
             a.style.display = "none";
             a.className = "kite-button";
             a.target = "_blank";
-            a.rel = "noopener";
+            a.rel = "noopener noreferrer";
             a.setAttribute("data-kite", hiddenLinkRef.current?.getAttribute("data-kite") || "");
             a.setAttribute("data-exchange", common.exchange);
             a.setAttribute("data-tradingsymbol", common.tradingsymbol);
@@ -226,8 +273,7 @@ export default function ZerodhaLivePriceButton({
           });
           // In fallback, clear busy shortly after last click
           setTimeout(() => {
-            setBusy(false);
-            setLastClickTime(0); // Reset click time on completion
+            completeOrderFlow(false);
           }, created.length * 400 + 800);
           return;
         }
@@ -254,15 +300,17 @@ export default function ZerodhaLivePriceButton({
                   console.debug("[kite] staged legs count:", cnt);
                 } catch {}
                 const id = `kite-launch-${Date.now()}`;
-                const btn = document.createElement('button');
-                btn.id = id;
-                btn.style.display = 'none';
-                document.body.appendChild(btn);
+                const launchAnchor = document.createElement("a");
+                launchAnchor.id = id;
+                launchAnchor.href = "#";
+                launchAnchor.style.display = "none";
+                launchAnchor.target = "_blank";
+                launchAnchor.rel = "noopener noreferrer";
+                document.body.appendChild(launchAnchor);
                 try {
                   if (typeof kite.finished === 'function') {
                     kite.finished(function () { 
-                      setBusy(false);
-                      setLastClickTime(0); // Reset click time on completion
+                      completeOrderFlow(true);
                     });
                   }
                   if (typeof kite.link === 'function') {
@@ -273,8 +321,9 @@ export default function ZerodhaLivePriceButton({
                   // Install a one-time focus/visibility handler so if user closes
                   // the Kite window, we clear the Processing state on return.
                   try { setupReturnFocusReset(); } catch {}
-                  btn.click();
-                  setTimeout(() => document.body.removeChild(btn), 1000);
+                  launchAnchor.click();
+                  schedulePopupBlockedFallback(5000);
+                  setTimeout(() => document.body.removeChild(launchAnchor), 1000);
                 }, 50);
               }, 150);
               return;
@@ -299,6 +348,8 @@ export default function ZerodhaLivePriceButton({
             a.href = "#";
             a.style.display = "none";
             a.className = "kite-button";
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
             a.setAttribute("data-kite", hiddenLinkRef.current?.getAttribute("data-kite") || "");
             a.setAttribute("data-exchange", common.exchange);
             a.setAttribute("data-tradingsymbol", common.tradingsymbol);
@@ -324,14 +375,14 @@ export default function ZerodhaLivePriceButton({
             }, idx * 200);
           });
           setTimeout(() => {
-            setBusy(false);
-            setLastClickTime(0); // Reset click time on completion
+            completeOrderFlow(false);
           }, created.length * 250 + 800);
           return;
         }
       } else {
         // Unknown action, fallback
         if (hiddenLinkRef.current) hiddenLinkRef.current.click();
+        completeOrderFlow(false);
         return;
       }
 
@@ -339,8 +390,7 @@ export default function ZerodhaLivePriceButton({
     } catch (e) {
       // As a safety fallback
       if (hiddenLinkRef.current) hiddenLinkRef.current.click();
-      setBusy(false);
-      setLastClickTime(0); // Reset click time on error
+      completeOrderFlow(true);
     }
   };
 
@@ -351,6 +401,8 @@ export default function ZerodhaLivePriceButton({
         href="#"
         style={{ display: "none" }}
         className="kite-button"
+        target="_blank"
+        rel="noopener noreferrer"
         data-kite="v4mpvs6exp4garzl"
         data-exchange={exchange}
         data-tradingsymbol={symbol}
