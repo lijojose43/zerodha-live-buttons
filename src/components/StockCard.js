@@ -229,7 +229,7 @@ export default function StockCard({
   };
 
   return (
-    <div className="rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full max-w-sm">
+    <div className="rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full">
       <div className="grid grid-cols-2 gap-4">
         <div className="self-start">
           <div className="flex items-center gap-2">
@@ -442,7 +442,7 @@ export default function StockCard({
           </div>
           <div className="flex justify-between text-base text-slate-600 dark:text-slate-400">
             <span>Qty</span>
-            <span className="text-white">{effectiveQty}</span>
+            <span className="text-slate-900 dark:text-white">{effectiveQty}</span>
           </div>
           <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
             <span>Profit</span>
@@ -560,7 +560,7 @@ export default function StockCard({
           </div>
           <div className="flex justify-between text-base text-slate-600 dark:text-slate-400">
             <span>Qty</span>
-            <span className="text-white">{effectiveQty}</span>
+            <span className="text-slate-900 dark:text-white">{effectiveQty}</span>
           </div>
           <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
             <span>Profit</span>

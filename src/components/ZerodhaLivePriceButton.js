@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import useZerodhaPublisher from "../hooks/useZerodhaPublisher";
+import { usePaperTrading } from "../context/PaperTradingContext";
 
 export default function ZerodhaLivePriceButton({
   symbol,
@@ -21,6 +22,7 @@ export default function ZerodhaLivePriceButton({
   overrideSLTrigger = null,
 }) {
   const { ready, refreshButtons, kite } = useZerodhaPublisher();
+  const { mode, executePaperTrade } = usePaperTrading();
   const hiddenLinkRef = useRef(null);
   const wsRef = useRef(null);
   const activeSymbolRef = useRef(null);
@@ -134,7 +136,38 @@ export default function ZerodhaLivePriceButton({
     }
 
     setLastClickTime(now);
-    // Prefer programmatic Publisher API if available so we can place a 3-leg basket
+
+    // Paper trading mode - simulate order execution
+    if (mode === "paper") {
+      const ltp = Number(currentPrice || lastPrice);
+      if (!ltp || !isFinite(ltp) || ltp <= 0) {
+        return;
+      }
+
+      const txn = (action || "BUY").toUpperCase();
+      const slTrigger =
+        Number.isFinite(overrideSLTrigger) && overrideSLTrigger > 0
+          ? roundToTick(overrideSLTrigger)
+          : roundToTick(ltp * (txn === "BUY" ? 1 - slPct / 100 : 1 + slPct / 100));
+      const targetPrice =
+        Number.isFinite(overrideTargetPrice) && overrideTargetPrice > 0
+          ? roundToTick(overrideTargetPrice)
+          : roundToTick(ltp * (txn === "BUY" ? 1 + targetPct / 100 : 1 - targetPct / 100));
+
+      executePaperTrade({
+        symbol,
+        action: txn,
+        quantity: Number(quantity) || 1,
+        price: ltp,
+        orderType: "MARKET",
+        triggerPrice: slTrigger,
+        targetPrice,
+        slPrice: slTrigger,
+      });
+      return;
+    }
+
+    // Live mode - use Kite Publisher
     try {
       setBusy(true);
       startOrderFlow();
