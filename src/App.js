@@ -271,7 +271,10 @@ function AppInner() {
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white p-6 space-y-4">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            {mode !== "paper" && (
+              <img src={`${process.env.PUBLIC_URL}/zerodha-kite-seeklogo.svg`} alt="Zerodha" className="w-7 h-7" />
+            )}
             {mode === "paper" ? "Paper Trading" : "Zerodha Live"}
           </h1>
           {mode === "paper" && (
@@ -440,12 +443,12 @@ function AppInner() {
         >
           {/* Backdrop */}
           <div
-            className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${
-              isBottomSheetAnimating ? 'opacity-0 backdrop-blur-none' : 'opacity-100 backdrop-blur-sm'
+            className={`absolute inset-0 bg-black/80 ${
+              isBottomSheetAnimating ? 'opacity-0' : 'opacity-100'
             }`}
             style={{
-              transition: 'opacity 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94), backdrop-filter 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-              willChange: 'opacity, backdrop-filter'
+              transition: 'opacity 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+              willChange: 'opacity'
             }}
             onClick={closeSettings}
           />

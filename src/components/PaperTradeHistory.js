@@ -112,11 +112,11 @@ export default function PaperTradeHistory({ onClose }) {
     >
       {/* Backdrop */}
       <div
-        className={`absolute inset-0 bg-black/50 backdrop-blur-sm ${
-          isAnimating ? "opacity-0 backdrop-blur-none" : "opacity-100 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/80 ${
+          isAnimating ? "opacity-0" : "opacity-100"
         }`}
         style={{
-          transition: "opacity 600ms cubic-bezier(0.25,0.46,0.45,0.94), backdrop-filter 600ms cubic-bezier(0.25,0.46,0.45,0.94)",
+          transition: "opacity 400ms cubic-bezier(0.25,0.46,0.45,0.94)",
         }}
         onClick={close}
       />
@@ -170,15 +170,15 @@ export default function PaperTradeHistory({ onClose }) {
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between px-5 pb-3">
           <div>
-            <h2 className="text-lg font-semibold">Paper Trading</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <h2 className="text-xl font-bold">Paper Trading</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Balance: ₹{balance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={resetPaperTrades}
-              className="text-xs px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-400"
+              className="text-sm px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-400"
             >
               Reset
             </button>
@@ -194,7 +194,7 @@ export default function PaperTradeHistory({ onClose }) {
         </div>
 
         {/* Stats Bar */}
-        <div className="grid grid-cols-4 gap-2 px-5 py-3 bg-slate-50 dark:bg-slate-800/50 border-y border-slate-200 dark:border-slate-800 text-center text-xs shrink-0">
+        <div className="grid grid-cols-4 gap-2 px-5 py-3 bg-slate-50 dark:bg-slate-800/50 border-y border-slate-200 dark:border-slate-800 text-center text-sm shrink-0">
           <div>
             <p className="text-slate-500 dark:text-slate-400">Trades</p>
             <p className="font-semibold">{stats.totalTrades}</p>
@@ -219,7 +219,7 @@ export default function PaperTradeHistory({ onClose }) {
         <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4">
           {openTrades.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
                 Open Positions ({openTrades.length})
               </h3>
               <div className="space-y-2">
@@ -232,7 +232,7 @@ export default function PaperTradeHistory({ onClose }) {
 
           {closedTrades.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mb-2">
                 History ({closedTrades.length})
               </h3>
               <div className="space-y-2">
@@ -244,7 +244,7 @@ export default function PaperTradeHistory({ onClose }) {
           )}
 
           {trades.length === 0 && (
-            <div className="text-center py-10 text-slate-400 dark:text-slate-500 text-sm">
+            <div className="text-center py-10 text-slate-400 dark:text-slate-500 text-base">
               No paper trades yet. Switch to Paper mode and place a trade.
             </div>
           )}
@@ -262,11 +262,11 @@ function TradeCard({ trade, onClose }) {
   });
 
   return (
-    <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3 text-sm">
+    <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3 text-base">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
-            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+            className={`px-2 py-0.5 rounded text-xs font-bold ${
               trade.action === "BUY"
                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -277,9 +277,9 @@ function TradeCard({ trade, onClose }) {
           <span className="font-semibold">{trade.symbol}</span>
           <span className="text-slate-500 dark:text-slate-400">{trade.quantity}</span>
         </div>
-        <span className="text-xs text-slate-500 dark:text-slate-400">{time}</span>
+        <span className="text-sm text-slate-500 dark:text-slate-400">{time}</span>
       </div>
-      <div className="mt-1.5 flex items-center justify-between text-xs">
+      <div className="mt-1.5 flex items-center justify-between text-sm">
         <div className="flex gap-3 text-slate-600 dark:text-slate-400">
           <span>Entry ₹{trade.entryPrice.toFixed(2)}</span>
           {trade.targetPrice && <span>Tgt ₹{trade.targetPrice.toFixed(2)}</span>}
@@ -296,14 +296,14 @@ function TradeCard({ trade, onClose }) {
                 onClose(trade.id, Number(price));
               }
             }}
-            className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-[11px] font-medium"
+            className="px-2.5 py-1 rounded bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors text-xs font-medium"
           >
             Close
           </button>
         )}
       </div>
       {!isOpen && (
-        <div className="mt-1.5 flex items-center justify-between text-xs">
+        <div className="mt-1.5 flex items-center justify-between text-sm">
           <span className="text-slate-500 dark:text-slate-400">
             Exit ₹{trade.exitPrice?.toFixed(2)}
           </span>

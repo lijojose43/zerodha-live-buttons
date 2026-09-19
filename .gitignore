@@ -49,3 +49,16 @@ out/
 # Lockfiles (ignore alternative managers if not in use)
 yarn.lock
 pnpm-lock.yaml
+
+.opencode
+
+# BMad modules
+.agents
+_bmad/
+_bmad-output/
+_bmad/config.user.yaml
+
+# BMad Loop
+.bmad-loop/runs/
+.bmad-loop/cache/
+.bmad-loop/policy.toml
