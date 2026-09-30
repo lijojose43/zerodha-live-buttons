@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import StockCard from "./components/StockCard";
+import LandingPage from "./components/LandingPage";
 import PWAInstallButton from "./components/PWAInstallButton";
 import PWAStatus from "./components/PWAStatus";
 import Toast from "./components/Toast";
@@ -11,6 +12,19 @@ import {
 
 function AppInner() {
   const { mode, toggleMode, balance } = usePaperTrading();
+  const [entered, setEntered] = useState(() => {
+    try {
+      return typeof window !== "undefined" && localStorage.getItem("lb_entered") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const enterApp = () => {
+    try {
+      localStorage.setItem("lb_entered", "1");
+    } catch {}
+    setEntered(true);
+  };
   const [stocks, setStocks] = useState(() => {
     const v =
       typeof window !== "undefined" ? localStorage.getItem("stocks") : null;
@@ -267,6 +281,10 @@ function AppInner() {
     }
   }, [stocks]);
 
+  if (!entered) {
+    return <LandingPage onEnter={enterApp} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white p-6 space-y-4">
       <header className="flex items-center justify-between">
@@ -284,6 +302,19 @@ function AppInner() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Paper Balance / History */}
+          {mode === "paper" && (
+            <button
+              onClick={() => setShowPaperHistory(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-xs font-medium"
+              title="Paper trade history"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                <path fillRule="evenodd" d="M10 2a.75.75 0 01.75.75v.258a33.186 33.186 0 016.668.83.75.75 0 01-.336 1.461 31.28 31.28 0 00-1.103-.232l2.79 5.178a.75.75 0 01-.387.999l-2.278-.716A7.804 7.804 0 0114.48 13H16a.75.75 0 010 1.5h-1.52a7.804 7.804 0 01-.368 1.273l2.278.716a.75.75 0 01.387.999l-2.79 5.178c.37.078.74.15 1.103.232a.75.75 0 01.336 1.461 33.186 33.186 0 01-6.668.83V17.25a.75.75 0 01-1.5 0v-.258a33.186 33.186 0 01-6.668-.83.75.75 0 01.336-1.461 31.28 31.28 0 001.103.232L4.663 9.738a.75.75 0 01.387-.999l2.278.716A7.804 7.804 0 015.52 7.5H4a.75.75 0 010-1.5h1.52a7.804 7.804 0 01.368-1.273L3.61 3.548a.75.75 0 01-.387-.999l2.79-5.178A31.28 31.28 0 006.71 0a.75.75 0 01.336-1.461A33.186 33.186 0 0113.75.758V.5a.75.75 0 01.75-.75h.258zM10 12a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+              </svg>
+              ₹{balance.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+            </button>
+          )}
           {/* Live/Paper Toggle — iOS native style */}
           <button
             onClick={toggleMode}
@@ -305,20 +336,6 @@ function AppInner() {
           <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 hidden sm:inline">
             {mode === "paper" ? "Paper" : "Live"}
           </span>
-
-          {/* Paper Balance / History */}
-          {mode === "paper" && (
-            <button
-              onClick={() => setShowPaperHistory(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors text-xs font-medium"
-              title="Paper trade history"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                <path fillRule="evenodd" d="M10 2a.75.75 0 01.75.75v.258a33.186 33.186 0 016.668.83.75.75 0 01-.336 1.461 31.28 31.28 0 00-1.103-.232l2.79 5.178a.75.75 0 01-.387.999l-2.278-.716A7.804 7.804 0 0114.48 13H16a.75.75 0 010 1.5h-1.52a7.804 7.804 0 01-.368 1.273l2.278.716a.75.75 0 01.387.999l-2.79 5.178c.37.078.74.15 1.103.232a.75.75 0 01.336 1.461 33.186 33.186 0 01-6.668.83V17.25a.75.75 0 01-1.5 0v-.258a33.186 33.186 0 01-6.668-.83.75.75 0 01.336-1.461 31.28 31.28 0 001.103.232L4.663 9.738a.75.75 0 01.387-.999l2.278.716A7.804 7.804 0 015.52 7.5H4a.75.75 0 010-1.5h1.52a7.804 7.804 0 01.368-1.273L3.61 3.548a.75.75 0 01-.387-.999l2.79-5.178A31.28 31.28 0 006.71 0a.75.75 0 01.336-1.461A33.186 33.186 0 0113.75.758V.5a.75.75 0 01.75-.75h.258zM10 12a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-              </svg>
-              ₹{balance.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-            </button>
-          )}
 
           <button
             onClick={() => window.location.reload()}
@@ -413,7 +430,7 @@ function AppInner() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {stocks.map((it) => (
           <StockCard
             key={it.id}

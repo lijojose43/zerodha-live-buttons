@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import ZerodhaLivePriceButton from "./ZerodhaLivePriceButton";
+import { getBrokerage } from "../charges";
 
 export default function StockCard({
   id,
@@ -149,64 +150,29 @@ export default function StockCard({
     customSellTarget !== null ? customSellTarget : calculatedSellTarget;
   const sellSL = customSellSL !== null ? customSellSL : calculatedSellSL;
 
-  // Brokerage/charges calculation based on provided PHP logic
-  const round2 = (n) => Math.round(n * 100) / 100;
-  const iRound = (n) => Math.round(n);
-  const getBrokerage = (buyPrice, sellPrice, qty) => {
-    if (!buyPrice || !sellPrice || !qty) return 0;
-    const buyTotal = buyPrice * qty;
-    const sellTotal = sellPrice * qty;
-    const turnover = round2((sellPrice + buyPrice) * qty);
-
-    let brokerageBuy = (buyTotal * 0.03) / 100;
-    let brokerageSell = (sellTotal * 0.03) / 100;
-    brokerageBuy = brokerageBuy < 20 ? brokerageBuy : 20;
-    brokerageSell = brokerageSell < 20 ? brokerageSell : 20;
-    const brokerage = round2(brokerageBuy + brokerageSell);
-
-    // STT based on average price of buy and sell
-    let stt = iRound(round2(((buyPrice + sellPrice) / 2) * qty * 0.00025));
-    if (buyPrice === 0 && sellPrice === 0) stt = 0;
-
-    // SEBI charges
-    const sebiCharges = round2(turnover * 0.000001);
-
-    // Exchange transaction charges and NSE IPFT
-    const isNSE = (exchange || "").toUpperCase() === "NSE";
-    const baseEtc = isNSE ? turnover * 0.0000297 : turnover * 0.0000375;
-    const nseIpft = isNSE ? turnover * 0.000001 : 0;
-    const transactionCharges = round2(baseEtc + nseIpft);
-
-    // GST on brokerage + etc + sebi
-    const gst = round2(0.18 * (brokerage + transactionCharges + sebiCharges));
-
-    // Stamp duty on buy side
-    const stampCharges = iRound(round2(buyTotal * 0.00003));
-
-    const totalCharges = round2(
-      brokerage + stt + transactionCharges + gst + sebiCharges + stampCharges
-    );
-    return totalCharges;
-  };
+  // Brokerage/charges — shared engine (see src/charges.js).
+  // Kept as a closure so existing call sites stay unchanged.
+  const getBrokerageForCard = (buyPrice, sellPrice, qty) =>
+    getBrokerage(buyPrice, sellPrice, qty, exchange);
 
   // Net Profit/Loss after charges
   const potentialBuyProfit =
     ltp && buyTarget
       ? (buyTarget - ltp) * effectiveQty -
-        getBrokerage(ltp, buyTarget, effectiveQty)
+        getBrokerageForCard(ltp, buyTarget, effectiveQty)
       : 0;
   const potentialBuyLoss =
     ltp && buySL
-      ? (ltp - buySL) * effectiveQty + getBrokerage(ltp, buySL, effectiveQty)
+      ? (ltp - buySL) * effectiveQty + getBrokerageForCard(ltp, buySL, effectiveQty)
       : 0;
   const potentialSellProfit =
     ltp && sellTarget
       ? (ltp - sellTarget) * effectiveQty -
-        getBrokerage(sellTarget, ltp, effectiveQty)
+        getBrokerageForCard(sellTarget, ltp, effectiveQty)
       : 0;
   const potentialSellLoss =
     ltp && sellSL
-      ? (sellSL - ltp) * effectiveQty + getBrokerage(sellSL, ltp, effectiveQty)
+      ? (sellSL - ltp) * effectiveQty + getBrokerageForCard(sellSL, ltp, effectiveQty)
       : 0;
 
   const openTradingView = () => {
@@ -228,10 +194,24 @@ export default function StockCard({
     }, 800);
   };
 
+  // Risk : reward (per side) for display
+  const buyRR =
+    ltp && buyTarget && buySL && ltp - buySL > 0
+      ? (buyTarget - ltp) / (ltp - buySL)
+      : 0;
+  const sellRR =
+    ltp && sellTarget && sellSL && sellSL - ltp > 0
+      ? (ltp - sellTarget) / (sellSL - ltp)
+      : 0;
+
   return (
-    <div className="rounded-xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full">
+    <div className="relative overflow-hidden rounded-2xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full transition-shadow hover:shadow-xl">
       <div className="grid grid-cols-2 gap-4">
-        <div className="self-start">
+        <div className="self-start flex items-center gap-2.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-sm font-extrabold text-white shadow-md">
+            {String(symbol || "?").charAt(0).toUpperCase()}
+          </div>
+          <div>
           <div className="flex items-center gap-2">
             <input
               type="text"
@@ -278,6 +258,7 @@ export default function StockCard({
                 <path d="M3 10V3h7" />
               </svg>
             </button>
+          </div>
           </div>
         </div>
         <div className="text-right self-start justify-self-end">
@@ -335,7 +316,10 @@ export default function StockCard({
       </div>
 
       <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
-        <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
+        <div className="rounded-xl bg-gradient-to-b from-emerald-50 to-slate-100 dark:from-emerald-950/40 dark:to-slate-800 p-3 ring-1 ring-emerald-200/60 dark:ring-emerald-900/40">
+          <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
+            ▲ Long
+          </div>
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">TA</span>
             <div className="relative flex items-center">
@@ -385,7 +369,7 @@ export default function StockCard({
                 step={tickSize || 0.05}
                 min="0"
                 placeholder="0.00"
-                className="w-16 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                className="w-20 min-w-0 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
             </div>
           </div>
@@ -436,24 +420,31 @@ export default function StockCard({
                 step={tickSize || 0.05}
                 min="0"
                 placeholder="0.00"
-                className="w-16 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                className="w-20 min-w-0 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
             </div>
           </div>
           <div className="flex justify-between text-base text-slate-600 dark:text-slate-400">
             <span>Qty</span>
-            <span className="text-slate-900 dark:text-white">{effectiveQty}</span>
+            <span className="font-semibold text-slate-900 dark:text-white">{effectiveQty}</span>
           </div>
-          <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
-            <span>Profit</span>
-            <span>₹{potentialBuyProfit.toFixed(2)}</span>
+          <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <span>R:R</span>
+            <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">{buyRR > 0 ? buyRR.toFixed(2) : "—"}</span>
           </div>
-          <div className="flex justify-between text-base font-medium text-red-600 dark:text-red-300">
-            <span>Loss</span>
-            <span>₹{potentialBuyLoss.toFixed(2)}</span>
+          <div className="mt-2 flex justify-between gap-2 rounded-md bg-emerald-500/10 px-2 py-1 text-base font-medium text-green-600 dark:text-green-300">
+            <span className="shrink-0">Profit</span>
+            <span className="truncate tabular-nums">₹{potentialBuyProfit.toFixed(2)}</span>
+          </div>
+          <div className="mt-1 flex justify-between gap-2 rounded-md bg-red-500/10 px-2 py-1 text-base font-medium text-red-600 dark:text-red-300">
+            <span className="shrink-0">Loss</span>
+            <span className="truncate tabular-nums">₹{potentialBuyLoss.toFixed(2)}</span>
           </div>
         </div>
-        <div className="rounded-lg bg-slate-100 dark:bg-slate-800 p-3">
+        <div className="rounded-xl bg-gradient-to-b from-rose-50 to-slate-100 dark:from-rose-950/40 dark:to-slate-800 p-3 ring-1 ring-rose-200/60 dark:ring-rose-900/40">
+          <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-300">
+            ▼ Short
+          </div>
           <div className="flex justify-between text-base">
             <span className="text-slate-600 dark:text-slate-400">SL</span>
             <div className="relative flex items-center">
@@ -501,7 +492,7 @@ export default function StockCard({
                 step={tickSize || 0.05}
                 min="0"
                 placeholder="0.00"
-                className="w-16 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                className="w-20 min-w-0 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
             </div>
           </div>
@@ -554,26 +545,33 @@ export default function StockCard({
                 step={tickSize || 0.05}
                 min="0"
                 placeholder="0.00"
-                className="w-16 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                className="w-20 min-w-0 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
             </div>
           </div>
           <div className="flex justify-between text-base text-slate-600 dark:text-slate-400">
             <span>Qty</span>
-            <span className="text-slate-900 dark:text-white">{effectiveQty}</span>
+            <span className="font-semibold text-slate-900 dark:text-white">{effectiveQty}</span>
           </div>
-          <div className="mt-2 flex justify-between text-base font-medium text-green-600 dark:text-green-300">
-            <span>Profit</span>
-            <span>₹{potentialSellProfit.toFixed(2)}</span>
+          <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <span>R:R</span>
+            <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">{sellRR > 0 ? sellRR.toFixed(2) : "—"}</span>
           </div>
-          <div className="flex justify-between text-base font-medium text-red-600 dark:text-red-300">
-            <span>Loss</span>
-            <span>₹{potentialSellLoss.toFixed(2)}</span>
+          <div className="mt-2 flex justify-between gap-2 rounded-md bg-emerald-500/10 px-2 py-1 text-base font-medium text-green-600 dark:text-green-300">
+            <span className="shrink-0">Profit</span>
+            <span className="truncate tabular-nums">₹{potentialSellProfit.toFixed(2)}</span>
+          </div>
+          <div className="mt-1 flex justify-between gap-2 rounded-md bg-red-500/10 px-2 py-1 text-base font-medium text-red-600 dark:text-red-300">
+            <span className="shrink-0">Loss</span>
+            <span className="truncate tabular-nums">₹{potentialSellLoss.toFixed(2)}</span>
           </div>
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="mt-3 text-center text-[11px] tracking-wide text-slate-400 dark:text-slate-500">
+        Net after all 6 Zerodha charge heads · R:R updates live
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
         <ZerodhaLivePriceButton
           symbol={symbol}
           action="BUY"

@@ -451,22 +451,32 @@ export default function ZerodhaLivePriceButton({
       <button
         onClick={handleClick}
         disabled={busy}
-        className={`${className} ${compact ? "px-3 py-1.5 text-sm" : "px-4 py-2"} rounded-lg font-semibold shadow-md transition-all flex flex-col items-center ${
+        className={`${className} ${compact ? "px-3 py-2" : "px-4 py-2.5"} rounded-xl font-extrabold tracking-wide transition-all flex flex-col items-center gap-0.5 active:scale-[.98] ${
           action.toUpperCase() === "BUY"
-            ? "bg-green-500 hover:bg-green-600 text-white"
-            : "bg-red-500 hover:bg-red-600 text-white"
-        } ${busy ? "opacity-60 cursor-not-allowed" : ""}`}
+            ? "bg-gradient-to-b from-emerald-400 to-green-600 text-white shadow-md hover:-translate-y-0.5"
+            : "bg-gradient-to-b from-rose-400 to-red-600 text-white shadow-md hover:-translate-y-0.5"
+        } ${busy ? "opacity-60 cursor-not-allowed hover:translate-y-0" : ""}`}
       >
-        <span className="flex items-center gap-2">
-          {busy && (
+        <span className="flex items-center gap-1.5 text-[15px]">
+          {busy ? (
             <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
+          ) : action.toUpperCase() === "BUY" ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 19V5m0 0l-6 6m6-6l6 6" /></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 5v14m0 0l6-6m-6 6l-6-6" /></svg>
           )}
           {busy
             ? 'Processing...'
-            : (action && action.toUpperCase() === 'BUY' ? 'Buy' : 'Sell')}
+            : (action && action.toUpperCase() === 'BUY' ? 'BUY' : 'SELL')}
+          {!busy && (
+            <span className="rounded-full bg-white/20 px-1.5 py-px text-[11px] font-bold">×{quantity}</span>
+          )}
+        </span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-white/75">
+          {mode === "paper" ? "Paper" : "MIS · Mkt"}
         </span>
         {!compact && (
           <span className="text-sm font-mono text-white">
