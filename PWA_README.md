@@ -22,6 +22,7 @@ Your Zerodha Live Price Buttons app has been successfully converted to a Progres
 - Service worker registration
 
 ### 4. **App Icons** (Production PNG + ICO generated)
+- Master art: `zerodha-live-butttons.png` — the blue "Zerodha Live" squircle mark, drawn on transparency
 - `icon-72x72.png` through `icon-512x512.png` - Standard PWA icon sizes
 - `icon-192x192-maskable.png` & `icon-512x512-maskable.png` - Maskable icons for Android launchers
 - `apple-touch-icon.png` - iOS home screen icon

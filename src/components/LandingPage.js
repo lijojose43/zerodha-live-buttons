@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "../landing.css";
 import Icon from "./icons";
 import { getBrokerage } from "../charges";
@@ -140,87 +140,6 @@ function Ticker() {
   );
 }
 
-/* ---------- hero candlestick backdrop ---------- */
-/* Deterministic seeded series — renders identically on every load. */
-function HeroCandles() {
-  const candles = useMemo(() => {
-    let seed = 19751;
-    const rnd = () => {
-      seed = (seed * 1103515245 + 12345) % 2147483648;
-      return seed / 2147483648;
-    };
-    const out = [];
-    let price = 2180;
-    for (let i = 0; i < 64; i++) {
-      const drift = (rnd() - 0.47) * 24;
-      const open = price;
-      const close = price + drift;
-      out.push({
-        open,
-        close,
-        hi: Math.max(open, close) + rnd() * 13,
-        lo: Math.min(open, close) - rnd() * 13,
-      });
-      price = close;
-    }
-    return out;
-  }, []);
-
-  const W = 1280;
-  const H = 300;
-  const PAD = 22;
-  const prices = candles.flatMap((c) => [c.hi, c.lo]);
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const span = max - min || 1;
-  const y = (v) => PAD + (1 - (v - min) / span) * (H - PAD * 2);
-  const slot = W / candles.length;
-  const bodyW = Math.max(4, slot * 0.62);
-
-  return (
-    <svg
-      className="lb-hero-candles"
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="xMidYMax slice"
-      aria-hidden="true"
-      focusable="false"
-    >
-      {candles.map((c, i) => {
-        const x = i * slot + slot / 2;
-        const up = c.close >= c.open;
-        const tinted = i % 3 === 0;
-        const col = tinted
-          ? up
-            ? "var(--lp-pos)"
-            : "var(--lp-neg)"
-          : "var(--lp-line-2)";
-        const top = y(Math.max(c.open, c.close));
-        const bot = y(Math.min(c.open, c.close));
-        return (
-          <g key={i} opacity={tinted ? 0.95 : 0.75}>
-            <line
-              x1={x}
-              y1={y(c.hi)}
-              x2={x}
-              y2={y(c.lo)}
-              stroke={col}
-              strokeWidth="1.25"
-            />
-            <rect
-              x={x - bodyW / 2}
-              y={top}
-              width={bodyW}
-              height={Math.max(2, bot - top)}
-              rx="1"
-              fill={col}
-            />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
 /* ---------- live terminal demo ---------- */
 function LiveTerminal({ onEnter }) {
   const [price, setPrice] = useState(2485.5);
@@ -329,12 +248,40 @@ function Calculator() {
 /* ---------- page ---------- */
 export default function LandingPage({ onEnter }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // Shares the app's theme key + `.dark` class on <html>, so the choice
+  // survives navigation between the landing page and the terminal.
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem("theme");
+      if (saved === "light" || saved === "dark") return saved;
+    } catch {}
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+    ) {
+      return "dark";
+    }
+    return "light";
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") root.classList.add("dark");
+    else root.classList.remove("dark");
+    try {
+      localStorage.setItem("theme", theme);
+    } catch {}
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
+
   return (
     <div className="lb-landing">
       <nav className="lb-nav">
         <div className="lb-nav-inner">
           <a href="#top" className="lb-nav-logo">
-            <span className="lb-nav-mark">Z</span>
+            <img src="/logo-mark.png" alt="" className="lb-nav-mark" />
             Zerodha Live <span className="lb-nav-tag">Terminal</span>
           </a>
           <div className={`lb-nav-links ${menuOpen ? "open" : ""}`}>
@@ -342,11 +289,20 @@ export default function LandingPage({ onEnter }) {
             <a href="#calculator" onClick={() => setMenuOpen(false)}>Calculator</a>
             <a href="#security" onClick={() => setMenuOpen(false)}>Security</a>
             <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
-            <button className="lb-nav-cta" onClick={onEnter}>Launch terminal</button>
           </div>
-          <button className="lb-nav-toggle" aria-label="Menu" onClick={() => setMenuOpen((v) => !v)}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
-          </button>
+          <div className="lb-nav-actions">
+            <button
+              className="lb-theme-toggle"
+              onClick={toggleTheme}
+              aria-label="Toggle color theme"
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              <Icon name={theme === "dark" ? "sun" : "moon"} />
+            </button>
+            <button className="lb-nav-toggle" aria-label="Menu" onClick={() => setMenuOpen((v) => !v)}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -354,7 +310,6 @@ export default function LandingPage({ onEnter }) {
 
       <main id="top">
         <section className="lb-hero">
-          <HeroCandles />
           <div className="lb-hero-inner">
             <div className="lb-hero-content">
               <span className="lb-pill"><span className="lb-pulse-dot" /> NSE cash · intraday execution</span>
@@ -367,7 +322,7 @@ export default function LandingPage({ onEnter }) {
               </p>
               <div className="lb-hero-actions">
                 <button className="lb-btn-primary" onClick={onEnter}><Icon name="bolt" className="h-4 w-4" /> Launch terminal</button>
-                <a href="#calculator" className="lb-btn-ghost">Open profit calculator ↓</a>
+                <a href="#calculator" className="lb-btn-ghost">Profit calculator ↓</a>
               </div>
               <div className="lb-hero-proof">
                 <div className="lb-proof"><span className="lb-check"><Icon name="check" /></span><span><b>50 instruments</b> pre-wired</span></div>
@@ -518,7 +473,7 @@ export default function LandingPage({ onEnter }) {
       <footer className="lb-footer">
         <div className="lb-footer-inner">
           <div className="lb-footer-brand">
-            <span className="lb-nav-logo"><span className="lb-nav-mark">Z</span>Zerodha Live</span>
+            <span className="lb-nav-logo"><img src="/logo-mark.png" alt="" className="lb-nav-mark" />Zerodha Live</span>
             <p>One-tap intraday execution for the Nifty 50, with charge-aware P&amp;L. Local-first PWA.</p>
           </div>
           <div>

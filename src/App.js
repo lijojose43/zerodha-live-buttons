@@ -539,9 +539,7 @@ function AppInner() {
       <header className="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-3 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-[#FF9E2C] to-[#FF5A3C] text-[13px] font-bold text-white shadow-elev">
-              Z
-            </span>
+            <img src="/logo-mark.png" alt="" className="h-7 w-7 shrink-0 rounded-md shadow-elev" />
             <span className="truncate text-[15px] font-bold tracking-tight text-ink">
               Zerodha Live
             </span>
@@ -593,7 +591,7 @@ function AppInner() {
       {/* ================= command toolbar ================= */}
       <div className="border-b border-line bg-canvas">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
-          <div className="relative min-w-0 flex-1 sm:max-w-xs">
+          <div className="relative min-w-0 basis-full flex-1 sm:basis-auto sm:max-w-xs">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -1033,7 +1031,6 @@ function AppInner() {
         )}
 
       {/* PWA Components */}
-      <PWAStatus />
       <PWAInstallButton />
       <Toast />
       {showPaperHistory && (
@@ -1069,6 +1066,7 @@ export default function App() {
 
   return (
     <PaperTradingProvider>
+      <PWAStatus />
       {isAppRoute ? (
         <AppInner />
       ) : (

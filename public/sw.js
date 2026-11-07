@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zerodha-live-v5';
+const CACHE_NAME = 'zerodha-live-v6';
 const urlsToCache = [
   '/',
   '/app/',
