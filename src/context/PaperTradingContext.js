@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { getBrokerage } from "../charges";
 
 const PaperTradingContext = createContext(null);
 
@@ -121,7 +122,13 @@ export function PaperTradingProvider({ children }) {
             t.action === "BUY"
               ? (exitPrice - t.entryPrice) * t.quantity
               : (t.entryPrice - exitPrice) * t.quantity;
-          const charges = calcCharges(t, exitPrice);
+          // Shared Zerodha engine (sell leg = exit for BUY, entry for SELL)
+          const charges = getBrokerage(
+            t.action === "BUY" ? t.entryPrice : exitPrice,
+            t.action === "BUY" ? exitPrice : t.entryPrice,
+            t.quantity,
+            "NSE"
+          );
           const netPnl = pnl - charges;
 
           const exitCost =
@@ -183,6 +190,34 @@ export function PaperTradingProvider({ children }) {
     showToast("Paper trading reset", "info");
   }, [showToast]);
 
+  const deletePaperTrade = useCallback(
+    (tradeId) => {
+      const trade = trades.find((t) => t.id === tradeId);
+      if (!trade) return;
+      const cost = trade.entryPrice * trade.quantity;
+      if (trade.status === "OPEN") {
+        // Refund the entry lock: reverse of executePaperTrade
+        setBalance((b) =>
+          trade.action === "BUY" ? b + cost : b - cost
+        );
+      } else {
+        // Undo a closed trade: reverse entry + close effects
+        const exitCost =
+          trade.action === "BUY"
+            ? trade.exitPrice * trade.quantity
+            : trade.entryPrice * trade.quantity;
+        setBalance((b) =>
+          trade.action === "BUY"
+            ? b + cost - exitCost - trade.pnl
+            : b - cost + exitCost - trade.pnl
+        );
+      }
+      setTrades((prev) => prev.filter((t) => t.id !== tradeId));
+      showToast("Trade deleted", "info");
+    },
+    [trades, showToast]
+  );
+
   return (
     <PaperTradingContext.Provider
       value={{
@@ -197,39 +232,13 @@ export function PaperTradingProvider({ children }) {
         getClosedTrades,
         getStats,
         resetPaperTrades,
+        deletePaperTrade,
         toast,
         showToast,
       }}
     >
       {children}
     </PaperTradingContext.Provider>
-  );
-}
-
-function calcCharges(trade, exitPrice) {
-  const buyPrice = trade.action === "BUY" ? trade.entryPrice : exitPrice;
-  const sellPrice = trade.action === "BUY" ? exitPrice : trade.entryPrice;
-  const qty = trade.quantity;
-  const turnover = (buyPrice + sellPrice) * qty;
-
-  let brokerageBuy = (buyPrice * qty * 0.03) / 100;
-  let brokerageSell = (sellPrice * qty * 0.03) / 100;
-  brokerageBuy = Math.min(brokerageBuy, 20);
-  brokerageSell = Math.min(brokerageSell, 20);
-  const brokerage = Math.round((brokerageBuy + brokerageSell) * 100) / 100;
-
-  const stt =
-    Math.round(((buyPrice + sellPrice) / 2) * qty * 0.00025 * 100) / 100;
-  const sebi = Math.round(turnover * 0.000001 * 100) / 100;
-  const etc = Math.round(turnover * 0.0000297 * 100) / 100;
-  const ipft = Math.round(turnover * 0.000001 * 100) / 100;
-  const gst = Math.round(0.18 * (brokerage + etc + sebi) * 100) / 100;
-  const stamp = Math.round(buyPrice * qty * 0.00003 * 100) / 100;
-
-  return (
-    Math.round(
-      (brokerage + stt + sebi + etc + ipft + gst + stamp) * 100
-    ) / 100
   );
 }
 

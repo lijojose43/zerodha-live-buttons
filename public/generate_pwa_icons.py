@@ -15,15 +15,19 @@ def _lerp(c1, c2, t):
 
 
 def _linear_gradient(size, top, bottom):
-    img = Image.new("RGBA", (size, size))
-    draw = ImageDraw.Draw(img)
-    for y in range(size):
-        t = y / (size - 1)
-        draw.line([(0, y), (size, y)], fill=_lerp(top, bottom, t) + (255,))
-    return img
+    # 135deg diagonal (top-left -> bottom-right), matching the brand mark.
+    # Rendered small then scaled up — smooth and fast without numpy.
+    tiny = 64
+    img = Image.new("RGBA", (tiny, tiny))
+    px = img.load()
+    for y in range(tiny):
+        for x in range(tiny):
+            t = (x + y) / (2 * (tiny - 1))
+            px[x, y] = _lerp(top, bottom, t) + (255,)
+    return img.resize((size, size), Image.BICUBIC)
 
 
-def _diagonal_overlay(size, color=(56, 189, 248), strength=0.22):
+def _diagonal_overlay(size, color=(255, 255, 255), strength=0.22):
     x = Image.linear_gradient("L").resize((size, size))
     y = Image.linear_gradient("L").rotate(90, expand=False).resize((size, size))
     mask = ImageChops.add(x, y, scale=2.0)
@@ -48,7 +52,7 @@ def _draw_chart_mark(img, safe_margin):
     bar_heights = [0.30, 0.48, 0.68]
     start_x = left + int(width * 0.08)
 
-    bar_color = (148, 163, 184, 90)
+    bar_color = (255, 255, 255, 80)
     for i, h in enumerate(bar_heights):
         x1 = start_x + i * (bar_width + bar_spacing)
         x2 = x1 + bar_width
@@ -67,15 +71,15 @@ def _draw_chart_mark(img, safe_margin):
     stroke = max(8, int(size * 0.052))
     shadow_offset = max(2, int(stroke * 0.18))
     shadow_points = [(x + shadow_offset, y + shadow_offset) for x, y in points]
-    draw.line(shadow_points, fill=(15, 23, 42, 140), width=stroke + 3, joint="curve")
-    draw.line(points, fill=(236, 253, 245, 255), width=stroke, joint="curve")
+    draw.line(shadow_points, fill=(120, 40, 10, 140), width=stroke + 3, joint="curve")
+    draw.line(points, fill=(255, 255, 255, 255), width=stroke, joint="curve")
 
     node_radius = max(4, int(stroke * 0.30))
     for x, y in points[:-1]:
         draw.ellipse(
             [(x - node_radius, y - node_radius), (x + node_radius, y + node_radius)],
-            fill=(16, 185, 129, 255),
-            outline=(236, 253, 245, 220),
+            fill=(255, 255, 255, 255),
+            outline=(194, 65, 12, 220),
             width=max(1, int(stroke * 0.10)),
         )
 
@@ -86,7 +90,7 @@ def _draw_chart_mark(img, safe_margin):
         (tip_x + arrow, tip_y + arrow * 0.3),
         (tip_x - arrow * 0.85, tip_y + arrow * 0.9),
     ]
-    draw.polygon(arrow_poly, fill=(16, 185, 129, 255))
+    draw.polygon(arrow_poly, fill=(255, 255, 255, 255))
 
 
 def _draw_favicon_mark(img):
@@ -98,8 +102,8 @@ def _draw_favicon_mark(img):
     mask_draw = ImageDraw.Draw(mask)
     mask_draw.rounded_rectangle([(0, 0), (size - 1, size - 1)], radius=r, fill=255)
 
-    bg = _linear_gradient(size, (13, 34, 93), (30, 64, 175))
-    bg = Image.alpha_composite(bg, _diagonal_overlay(size, color=(34, 211, 238), strength=0.14))
+    bg = _linear_gradient(size, (255, 158, 44), (255, 90, 60))
+    bg = Image.alpha_composite(bg, _diagonal_overlay(size, color=(255, 255, 255), strength=0.14))
     img.paste(bg, (0, 0), mask)
 
     z = [
@@ -114,20 +118,20 @@ def _draw_favicon_mark(img):
     dot = int(size * 0.15)
     draw.ellipse(
         [(size - pad - dot, pad), (size - pad, pad + dot)],
-        fill=(16, 185, 129, 255),
+        fill=(255, 255, 255, 255),
     )
 
 
 def _base_icon(maskable=False):
     size = MASTER_SIZE
-    base = _linear_gradient(size, (10, 18, 44), (29, 78, 216))
+    base = _linear_gradient(size, (255, 158, 44), (255, 90, 60))
     base = Image.alpha_composite(base, _diagonal_overlay(size))
 
     glow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
     glow_draw.ellipse(
         [(size * 0.16, size * 0.16), (size * 0.84, size * 0.84)],
-        fill=(56, 189, 248, 68),
+        fill=(255, 220, 180, 68),
     )
     glow = glow.filter(ImageFilter.GaussianBlur(radius=size * 0.08))
     base = Image.alpha_composite(base, glow)

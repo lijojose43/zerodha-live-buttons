@@ -2,17 +2,138 @@
 @tailwind components;
 @tailwind utilities;
 
-@keyframes slide-up {
+/* =====================================================
+   Enterprise design tokens — one palette, two themes.
+   Light: neutral gray canvas, white surfaces, hairline
+   borders. Dark: near-black canvas, elevated surfaces.
+   ===================================================== */
+:root {
+  --canvas: 247 248 250;
+  --surface: 255 255 255;
+  --surface-2: 242 244 247;
+  --line: 228 231 236;
+  --line-2: 203 210 219;
+  --ink: 13 18 28;
+  --ink-2: 71 84 103;
+  --ink-3: 139 148 163;
+  --accent: 37 99 235;
+  --pos: 3 122 72;
+  --neg: 181 35 24;
+  --warn: 180 92 8;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: 9 11 15;
+  --surface: 15 18 24;
+  --surface-2: 21 25 33;
+  --line: 29 34 45;
+  --line-2: 44 51 64;
+  --ink: 228 232 240;
+  --ink-2: 150 159 174;
+  --ink-3: 103 112 128;
+  --accent: 74 137 255;
+  --pos: 46 190 130;
+  --neg: 240 110 110;
+  --warn: 240 182 84;
+  color-scheme: dark;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  @apply bg-canvas font-sans text-ink antialiased;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(var(--accent) / 0.18);
+}
+
+/* Enterprise focus ring: 2px accent, no browser default */
+:focus-visible {
+  outline: 2px solid rgb(var(--accent) / 0.65);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* Number inputs: hide spinners, values are keyboard-typed */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Slim scrollbars inside drawers / panels */
+.scroll-slim {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--line-2)) transparent;
+}
+.scroll-slim::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: rgb(var(--line-2));
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Faint blueprint grid — landing hero backdrop only */
+.bg-blueprint {
+  background-image: linear-gradient(rgb(var(--line) / 0.55) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--line) / 0.55) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 75%);
+}
+
+/* Toast */
+@keyframes toast-in {
   from {
     opacity: 0;
-    transform: translate(-50%, 20px);
+    transform: translate(-50%, 10px);
   }
   to {
     opacity: 1;
     transform: translate(-50%, 0);
   }
 }
+.animate-toast-in {
+  animation: toast-in 0.22s cubic-bezier(0.2, 0, 0.13, 1);
+}
 
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
+/* Card entrance — subtle, one stagger batch, respects reduced motion */
+@keyframes app-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.app-rise {
+  animation: app-rise 0.35s cubic-bezier(0.2, 0, 0.13, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-rise,
+  .animate-toast-in {
+    animation: none;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
 }

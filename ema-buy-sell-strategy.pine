@@ -1,0 +1,213 @@
+//@version=5
+strategy(
+     title="EMA with Buy & Sell Signals [Strategy]",
+     shorttitle="EMA B/S Strategy",
+     overlay=true,
+     initial_capital=10000,
+     currency=currency.INR,
+     default_qty_type=strategy.fixed,
+     default_qty_value=1,
+     pyramiding=0,
+     calc_on_order_fills=true,
+     calc_on_every_tick=false,
+     commission_type=strategy.commission.percent,
+     commission_value=0.06)
+
+// =====================================================
+// STRATEGY SETTINGS (from your requirements)
+// =====================================================
+principal  = input.int(10000, "Principal (₹)", minval=100, group="Strategy")
+targetPct  = input.float(1.0, "Target %", minval=0.1, step=0.1, group="Strategy") / 100.0
+slPct      = input.float(0.5, "Stop Loss %", minval=0.1, step=0.1, group="Strategy") / 100.0
+allowLong  = input.bool(true, "Allow LONG trades", group="Strategy")
+allowShort = input.bool(true, "Allow SHORT trades", group="Strategy")
+squareOffEOD = input.bool(true, "Square-off open position at day end", group="Strategy")
+squareOffHour = input.int(15, "Square-off hour", minval=0, maxval=23, group="Strategy")
+squareOffMin  = input.int(15, "Square-off minute", minval=0, maxval=59, group="Strategy")
+useNSE = input.bool(true, "Exchange = NSE (off = BSE)", group="Costs")
+
+// =====================================================
+// EMA SETTINGS (same as indicator)
+// =====================================================
+len = input.int(9, minval=1, title="EMA Length")
+src = input.source(close, title="Source")
+offset = input.int(title="Offset", defval=0, minval=-500, maxval=500, display=display.data_window)
+
+emaLine = ta.ema(src, len)
+plot(emaLine, title="EMA", color=color.blue, offset=offset, linewidth=2)
+
+// =====================================================
+// SMOOTHING (same as indicator)
+// =====================================================
+ma(source, length, method) =>
+    switch method
+        "SMA"        => ta.sma(source, length)
+        "EMA"        => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA"        => ta.wma(source, length)
+        "VWMA"       => ta.vwma(source, length)
+
+typeMA = input.string(title="Smoothing Method", defval="SMA",
+     options=["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],
+     group="Smoothing", display=display.data_window)
+smoothingLength = input.int(title="Smoothing Length", defval=5, minval=1, maxval=100,
+     group="Smoothing", display=display.data_window)
+
+smoothingLine = ma(emaLine, smoothingLength, typeMA)
+plot(smoothingLine, title="Smoothing Line", color=color.green, offset=offset, linewidth=2)
+
+// =====================================================
+// SIGNAL FILTERS (same as indicator)
+// =====================================================
+useEMAFilter = input.bool(true, title="Use EMA Filter", group="Signal Filters")
+useSmoothingFilter = input.bool(true, title="Use Smoothing Filter", group="Signal Filters")
+
+// =====================================================
+// BROKERAGE ENGINE — port of src/charges.js (Zerodha intraday equity, NSE)
+// charges.js logic:
+//   brokerage 0.03%/leg capped ₹20, legs rounded to 2dp before summing
+//   STT 0.025% on SELL leg, rounded to whole ₹
+//   exchange 0.00297% + IPFT 0.0001% (NSE), each rounded to 2dp before summing
+//   SEBI 0.0001% of turnover, GST 18% on (brokerage+exchange+SEBI)
+//   stamp 0.003% on BUY leg, rounded to whole ₹
+// NOTE: strategy() commission above (0.06%/side) is only an approximation
+// for the Tester. The function below is the exact app maths, used for the
+// dashboard table and net-target display.
+// =====================================================
+round2(n) =>
+    math.round(n * 100.0) / 100.0
+
+getCharges(bpIn, spIn, qIn, isNSE) =>
+    bp = math.round(bpIn * 100.0) / 100.0
+    sp = math.round(spIn * 100.0) / 100.0
+    q = math.max(1.0, math.floor(qIn))
+    bBuyRaw = bp * q * 0.0003
+    bBuy = bBuyRaw > 20.0 ? 20.0 : math.round(bBuyRaw * 100.0) / 100.0
+    bSellRaw = sp * q * 0.0003
+    bSell = bSellRaw > 20.0 ? 20.0 : math.round(bSellRaw * 100.0) / 100.0
+    brok = math.round((bBuy + bSell) * 100.0) / 100.0
+    turnover = math.round((bp + sp) * q * 100.0) / 100.0
+    stt = bp == 0.0 and sp == 0.0 ? 0.0 : math.round(math.round(sp * q * 0.00025 * 100.0) / 100.0)
+    sebi = math.round(turnover * 0.000001 * 100.0) / 100.0
+    etcRaw = isNSE ? 0.0000297 * turnover : 0.0000375 * turnover
+    etc = math.round(etcRaw * 100.0) / 100.0
+    ipft = isNSE ? math.round(0.000001 * turnover * 100.0) / 100.0 : 0.0
+    trans = math.round((etc + ipft) * 100.0) / 100.0
+    gst = math.round(0.18 * (brok + trans + sebi) * 100.0) / 100.0
+    stamp = math.round(math.round(bp * q * 0.00003 * 100.0) / 100.0)
+    math.round((brok + stt + trans + gst + sebi + stamp) * 100.0) / 100.0
+
+// =====================================================
+// DAILY REFERENCES (same as indicator)
+// =====================================================
+prevDayClose = request.security(syminfo.tickerid, "D", close[1], lookahead=barmerge.lookahead_on)
+todayOpen = request.security(syminfo.tickerid, "D", open, lookahead=barmerge.lookahead_on)
+
+// =====================================================
+// CANDLE DIRECTION + CONDITIONS (same as indicator)
+// =====================================================
+isGreen = close > open
+isRed   = close < open
+
+buyPrevDayCondition = open > prevDayClose and close > prevDayClose and high > prevDayClose and low > prevDayClose
+buyTodayOpenCondition = open > todayOpen and close > todayOpen and high > todayOpen and low > todayOpen
+buyEMACondition = not useEMAFilter or close > emaLine
+buySmoothingCondition = not useSmoothingFilter or close > smoothingLine
+buyAllConditionsMet = isGreen and buyPrevDayCondition and buyTodayOpenCondition and buyEMACondition and buySmoothingCondition
+
+sellPrevDayCondition = open < prevDayClose and close < prevDayClose and high < prevDayClose and low < prevDayClose
+sellTodayOpenCondition = open < todayOpen and close < todayOpen and high < todayOpen and low < todayOpen
+sellEMACondition = not useEMAFilter or close < emaLine
+sellSmoothingCondition = not useSmoothingFilter or close < smoothingLine
+sellAllConditionsMet = isRed and sellPrevDayCondition and sellTodayOpenCondition and sellEMACondition and sellSmoothingCondition
+
+// =====================================================
+// FIRST SIGNAL PER DAY (same as indicator)
+// =====================================================
+var bool foundFirstBuy  = false
+var bool foundFirstSell = false
+isNewDay = ta.change(time("D")) != 0
+
+if isNewDay
+    foundFirstBuy  := false
+    foundFirstSell := false
+
+firstValidBuy = barstate.isconfirmed and buyAllConditionsMet and not foundFirstBuy
+firstValidSell = barstate.isconfirmed and sellAllConditionsMet and not foundFirstSell
+
+if firstValidBuy
+    foundFirstBuy := true
+if firstValidSell
+    foundFirstSell := true
+
+plotshape(firstValidBuy, title="First Valid Buy", location=location.belowbar,
+     style=shape.triangleup, color=color.green, size=size.small, text="BUY", textcolor=color.white)
+plotshape(firstValidSell, title="First Valid Sell", location=location.abovebar,
+     style=shape.triangledown, color=color.red, size=size.small, text="SELL", textcolor=color.white)
+
+// =====================================================
+// POSITION SIZING — full principal per trade
+// qty = floor(principal / entry price), min 1 share
+// =====================================================
+estQty = math.max(1, math.floor(principal / close))
+
+// =====================================================
+// ENTRIES + 1% TARGET / 0.5% SL EXITS
+// Targets are anchored to the position's average price so they
+// stay fixed while the trade is open.
+// =====================================================
+inLong  = strategy.position_size > 0
+inShort = strategy.position_size < 0
+avgPrice = strategy.position_avg_price
+
+longTarget  = avgPrice * (1.0 + targetPct)
+longStop    = avgPrice * (1.0 - slPct)
+shortTarget = avgPrice * (1.0 - targetPct)
+shortStop   = avgPrice * (1.0 + slPct)
+
+if firstValidBuy and allowLong and not inLong
+    strategy.entry("Long", strategy.long, qty=estQty)
+
+if firstValidSell and allowShort and not inShort
+    strategy.entry("Short", strategy.short, qty=estQty)
+
+// Re-assert exits every bar so TP/SL persist for the open position
+if inLong
+    strategy.exit("Long Exit", from_entry="Long", limit=longTarget, stop=longStop)
+if inShort
+    strategy.exit("Short Exit", from_entry="Short", limit=shortTarget, stop=shortStop)
+
+// Intraday square-off (optional)
+eodTime = hour >= squareOffHour and minute >= squareOffMin
+if squareOffEOD and eodTime and (inLong or inShort) and timeframe.isintraday
+    strategy.close_all(comment="EOD square-off")
+
+// =====================================================
+// COST-AWARE DASHBOARD (exact app maths)
+// Shows estimated round-trip charges if you entered here and
+// exited at the 1% target, plus gross vs net on a full-principal trade.
+// =====================================================
+estLongExit  = close * (1.0 + targetPct)
+estShortExit = close * (1.0 - targetPct)
+chgLong  = getCharges(close, estLongExit, estQty, useNSE)
+chgShort = getCharges(estShortExit, close, estQty, useNSE)
+grossWin = math.round(principal * targetPct * 100.0) / 100.0
+
+var table dash = table.new(position.top_right, 2, 5, border_width=1)
+if barstate.islast
+    table.cell(dash, 0, 0, "Principal", text_color=color.white, bgcolor=color.new(color.blue, 0))
+    table.cell(dash, 1, 0, "₹" + str.tostring(principal), text_color=color.white, bgcolor=color.new(color.blue, 0))
+    table.cell(dash, 0, 1, "Est qty @ close", text_color=color.black, bgcolor=color.new(color.gray, 80))
+    table.cell(dash, 1, 1, str.tostring(estQty), text_color=color.black, bgcolor=color.new(color.gray, 80))
+    table.cell(dash, 0, 2, "Gross 1% win", text_color=color.black, bgcolor=color.new(color.gray, 80))
+    table.cell(dash, 1, 2, "₹" + str.tostring(grossWin), text_color=color.black, bgcolor=color.new(color.gray, 80))
+    table.cell(dash, 0, 3, "Charges L→TP", text_color=color.black, bgcolor=color.new(color.yellow, 70))
+    table.cell(dash, 1, 3, "₹" + str.tostring(chgLong, "#.##"), text_color=color.black, bgcolor=color.new(color.yellow, 70))
+    table.cell(dash, 0, 4, "Net L→TP", text_color=color.white, bgcolor=color.new(color.green, 0))
+    table.cell(dash, 1, 4, "₹" + str.tostring(math.round((grossWin - chgLong) * 100.0) / 100.0, "#.##"), text_color=color.white, bgcolor=color.new(color.green, 0))
+
+// =====================================================
+// ALERTS
+// =====================================================
+alertcondition(firstValidBuy, title="Green Candle Buy Alert", message="First qualifying BUY candle detected.")
+alertcondition(firstValidSell, title="Red Candle Sell Alert", message="First qualifying SELL candle detected.")

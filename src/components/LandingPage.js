@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "../landing.css";
+import Icon from "./icons";
 import { getBrokerage } from "../charges";
 
 /* ---------- Zerodha intraday charges — shared engine, same as StockCard ---------- */
@@ -98,7 +99,8 @@ function Ticker() {
               if (!res.ok) throw new Error("feed " + res.status);
               const j = await res.json();
               const data = j?.data;
-              const price = Number(data?.pricecurrent);
+              // Equities expose LP (last price); indices expose pricecurrent.
+              const price = Number(data?.LP ?? data?.pricecurrent);
               const chg = Number(data?.pricepercentchange);
               if (!Number.isFinite(price)) throw new Error("no price");
               const priceStr = price.toLocaleString("en-IN", {
@@ -138,6 +140,87 @@ function Ticker() {
   );
 }
 
+/* ---------- hero candlestick backdrop ---------- */
+/* Deterministic seeded series — renders identically on every load. */
+function HeroCandles() {
+  const candles = useMemo(() => {
+    let seed = 19751;
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    const out = [];
+    let price = 2180;
+    for (let i = 0; i < 64; i++) {
+      const drift = (rnd() - 0.47) * 24;
+      const open = price;
+      const close = price + drift;
+      out.push({
+        open,
+        close,
+        hi: Math.max(open, close) + rnd() * 13,
+        lo: Math.min(open, close) - rnd() * 13,
+      });
+      price = close;
+    }
+    return out;
+  }, []);
+
+  const W = 1280;
+  const H = 300;
+  const PAD = 22;
+  const prices = candles.flatMap((c) => [c.hi, c.lo]);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const span = max - min || 1;
+  const y = (v) => PAD + (1 - (v - min) / span) * (H - PAD * 2);
+  const slot = W / candles.length;
+  const bodyW = Math.max(4, slot * 0.62);
+
+  return (
+    <svg
+      className="lb-hero-candles"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="xMidYMax slice"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {candles.map((c, i) => {
+        const x = i * slot + slot / 2;
+        const up = c.close >= c.open;
+        const tinted = i % 3 === 0;
+        const col = tinted
+          ? up
+            ? "var(--lp-pos)"
+            : "var(--lp-neg)"
+          : "var(--lp-line-2)";
+        const top = y(Math.max(c.open, c.close));
+        const bot = y(Math.min(c.open, c.close));
+        return (
+          <g key={i} opacity={tinted ? 0.95 : 0.75}>
+            <line
+              x1={x}
+              y1={y(c.hi)}
+              x2={x}
+              y2={y(c.lo)}
+              stroke={col}
+              strokeWidth="1.25"
+            />
+            <rect
+              x={x - bodyW / 2}
+              y={top}
+              width={bodyW}
+              height={Math.max(2, bot - top)}
+              rx="1"
+              fill={col}
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 /* ---------- live terminal demo ---------- */
 function LiveTerminal({ onEnter }) {
   const [price, setPrice] = useState(2485.5);
@@ -164,41 +247,41 @@ function LiveTerminal({ onEnter }) {
   const net = gross - brokerage(price, target, qty);
   const chg = ((price - 2455.2) / 2455.2) * 100;
 
-  const W = 300, Hh = 74;
+  const W = 300, Hh = 64;
   const lo = Math.min(...hist), hi = Math.max(...hist);
-  const pts = hist.map((v, i) => `${(i / (hist.length - 1)) * W},${Hh - 6 - ((v - lo) / (hi - lo || 1)) * (Hh - 14)}`).join(" ");
+  const pts = hist.map((v, i) => `${(i / (hist.length - 1)) * W},${Hh - 5 - ((v - lo) / (hi - lo || 1)) * (Hh - 12)}`).join(" ");
   const up = dir >= 0;
 
   return (
     <div style={{ position: "relative" }}>
-      <div className="lb-float-chip lb-chip-a">🎯 Target hit +{inr(net)}</div>
-      <div className="lb-float-chip lb-chip-b">⚡ Order fired in 1 tap</div>
+      <div className="lb-float-chip lb-chip-a"><Icon name="target" className="h-3.5 w-3.5" /> Target hit {inr(net)}</div>
+      <div className="lb-float-chip lb-chip-b"><Icon name="bolt" className="h-3.5 w-3.5" /> Order staged in 1 tap</div>
       <div className="lb-terminal">
         <div className="lb-term-bar">
           <span className="lb-dot" style={{ background: "#FF5F57" }} />
           <span className="lb-dot" style={{ background: "#FEBC2E" }} />
           <span className="lb-dot" style={{ background: "#28C840" }} />
-          <span className="lb-term-title">ZERODHA LIVE</span>
-          <span className="lb-term-live">● LIVE DEMO</span>
+          <span className="lb-term-title">watchlist.terminal — nse</span>
+          <span className="lb-term-live">● Live preview</span>
         </div>
         <div className="lb-term-body">
-          <div className="lb-term-sym"><h3>RELIANCE</h3><span>NSE · Qty {qty}</span></div>
+          <div className="lb-term-sym"><h3>RELIANCE</h3><span>NSE · MIS · Qty {qty}</span></div>
           <div className={`lb-term-price ${up ? "up" : "down"}`}>₹{price.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
           <div className={`lb-term-chg ${chg >= 0 ? "lb-pos" : "lb-neg"}`}>{chg >= 0 ? "▲" : "▼"} {Math.abs(chg).toFixed(2)}% today</div>
           <svg className="lb-spark" viewBox={`0 0 ${W} ${Hh}`} preserveAspectRatio="none">
-            <polyline points={pts} fill="none" stroke={up ? "#00E5A0" : "#FF5C6C"} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+            <polyline points={pts} fill="none" stroke={up ? "#2EBE82" : "#F06E6E"} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
           </svg>
           <div className="lb-term-grid">
             <div className="lb-term-cell">Target ₹{target.toFixed(2)}<b className="lb-pos">+{inr(gross)}</b></div>
             <div className="lb-term-cell">Stop-loss ₹{sl.toFixed(2)}<b className="lb-neg">−{inr((price - sl) * qty)}</b></div>
-            <div className="lb-term-cell">Charges<b style={{ color: "#F8FAFC" }}>{inr(brokerage(price, target, qty))}</b></div>
+            <div className="lb-term-cell">Charges<b>{inr(brokerage(price, target, qty))}</b></div>
             <div className="lb-term-cell">Net profit<b className="lb-pos">+{inr(net)}</b></div>
           </div>
           <div className="lb-term-btns">
-            <button className="lb-tbtn lb-tbtn-buy" onClick={onEnter}>BUY</button>
-            <button className="lb-tbtn lb-tbtn-sell" onClick={onEnter}>SELL</button>
+            <button className="lb-tbtn lb-tbtn-buy" onClick={onEnter}>Buy</button>
+            <button className="lb-tbtn lb-tbtn-sell" onClick={onEnter}>Sell</button>
           </div>
-          <div className="lb-term-foot">Live preview — tap to open the real app</div>
+          <div className="lb-term-foot">Tap to open the real terminal</div>
         </div>
       </div>
     </div>
@@ -235,8 +318,8 @@ function Calculator() {
       <Reveal delay="120ms">
         <div className="lb-calc-results">
           <div className="lb-res"><span>Gross profit</span><b>+{inr(gross)}</b></div>
-          <div className="lb-res"><span>Charges</span><b style={{ color: "#FF8A94" }}>−{inr(chg)}</b></div>
-          <div className="lb-res lb-res-net"><span style={{ color: "#7DD3FC" }}>You actually keep</span><b className="lb-pos">+{inr(net)}</b></div>
+          <div className="lb-res"><span>Charges</span><b style={{ color: "#F06E6E" }}>−{inr(chg)}</b></div>
+          <div className="lb-res lb-res-net"><span style={{ color: "#8FB6FF" }}>You actually keep</span><b className="lb-pos">+{inr(net)}</b></div>
         </div>
       </Reveal>
     </div>
@@ -252,14 +335,14 @@ export default function LandingPage({ onEnter }) {
         <div className="lb-nav-inner">
           <a href="#top" className="lb-nav-logo">
             <span className="lb-nav-mark">Z</span>
-            Zerodha Live <span className="lb-nav-live">PWA</span>
+            Zerodha Live <span className="lb-nav-tag">Terminal</span>
           </a>
           <div className={`lb-nav-links ${menuOpen ? "open" : ""}`}>
-            <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
-            <a href="#calculator" onClick={() => setMenuOpen(false)}>Profit Calc</a>
-            <a href="#how" onClick={() => setMenuOpen(false)}>How It Works</a>
+            <a href="#features" onClick={() => setMenuOpen(false)}>Platform</a>
+            <a href="#calculator" onClick={() => setMenuOpen(false)}>Calculator</a>
+            <a href="#security" onClick={() => setMenuOpen(false)}>Security</a>
             <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
-            <button className="lb-nav-cta" onClick={onEnter}>Open App</button>
+            <button className="lb-nav-cta" onClick={onEnter}>Launch terminal</button>
           </div>
           <button className="lb-nav-toggle" aria-label="Menu" onClick={() => setMenuOpen((v) => !v)}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
@@ -271,80 +354,101 @@ export default function LandingPage({ onEnter }) {
 
       <main id="top">
         <section className="lb-hero">
-          <div className="lb-orb lb-orb-a" />
-          <div className="lb-orb lb-orb-b" />
+          <HeroCandles />
           <div className="lb-hero-inner">
             <div className="lb-hero-content">
-              <span className="lb-pill"><span className="lb-pulse-dot" /> intraday · live + paper</span>
-              <h1>Fire orders at<br />the speed of <span className="lb-grad-text">thought.</span></h1>
+              <span className="lb-pill"><span className="lb-pulse-dot" /> NSE cash · intraday execution</span>
+              <h1>The watchlist<br />is the <span className="lb-grad-text">order ticket.</span></h1>
               <p className="lb-hero-desc">
-                Zerodha Live turns every stock into a <strong>one-tap BUY/SELL button</strong> —
-                with auto target, stop-loss, position sizing and the <strong>honest net profit</strong> after
-                all 6 Zerodha charge heads. No signup. Nothing leaves your device.
+                Zerodha Live wires the full <strong>Nifty 50</strong> to one-tap bracket
+                orders — entry, target and stop-loss derived from live prices, with{" "}
+                <strong>net P&amp;L after all six NSE charge heads</strong>. No accounts,
+                no servers: everything runs local-first in your browser.
               </p>
               <div className="lb-hero-actions">
-                <button className="lb-btn-primary" onClick={onEnter}>⚡ Launch the App</button>
-                <a href="#calculator" className="lb-btn-ghost">See your real profit ↓</a>
+                <button className="lb-btn-primary" onClick={onEnter}><Icon name="bolt" className="h-4 w-4" /> Launch terminal</button>
+                <a href="#calculator" className="lb-btn-ghost">Open profit calculator ↓</a>
               </div>
               <div className="lb-hero-proof">
-                <div className="lb-proof"><span className="lb-check">✓</span><span><b>1 tap</b>to Kite order</span></div>
-                <div className="lb-proof"><span className="lb-check">✓</span><span><b>₹0</b>tracked or stored</span></div>
-                <div className="lb-proof"><span className="lb-check">✓</span><span><b>Works</b>offline as PWA</span></div>
-                <div className="lb-proof"><span className="lb-check">✓</span><span><b>Net P&L</b>after all charges</span></div>
+                <div className="lb-proof"><span className="lb-check"><Icon name="check" /></span><span><b>50 instruments</b> pre-wired</span></div>
+                <div className="lb-proof"><span className="lb-check"><Icon name="check" /></span><span><b>3-leg</b> bracket orders</span></div>
+                <div className="lb-proof"><span className="lb-check"><Icon name="check" /></span><span><b>Charge-aware</b> P&amp;L</span></div>
+                <div className="lb-proof"><span className="lb-check"><Icon name="check" /></span><span><b>Local-first</b> storage</span></div>
               </div>
             </div>
             <LiveTerminal onEnter={onEnter} />
           </div>
         </section>
 
+        <div className="lb-integrations">
+          <div className="lb-integrations-inner">
+            <span>Wires into</span>
+            <b>Zerodha Kite Publisher</b>
+            <span className="lb-int-sep" />
+            <b>TradingView</b>
+            <span className="lb-int-sep" />
+            <b>Moneycontrol price feed</b>
+            <span className="lb-int-sep" />
+            <b>Yahoo Finance fallback</b>
+          </div>
+        </div>
+
         <section className="lb-stats">
           <div className="lb-stats-inner">
-            <div className="lb-stat"><CountUp to={1} suffix=" tap" /><span>from idea to Kite order</span></div>
-            <div className="lb-stat"><CountUp to={6} suffix="" /><span>charge heads in every P&amp;L</span></div>
-            <div className="lb-stat"><CountUp to={100} suffix="%" /><span>private — local-first storage</span></div>
-            <div className="lb-stat"><CountUp to={0} suffix="" /><span>signups, logins, servers</span></div>
+            <div className="lb-stat"><CountUp to={50} /><span>Nifty constituents pre-wired</span></div>
+            <div className="lb-stat"><CountUp to={3} suffix=" legs" /><span>staged per bracket order</span></div>
+            <div className="lb-stat"><CountUp to={6} /><span>charge heads netted from P&amp;L</span></div>
+            <div className="lb-stat"><CountUp to={0} /><span>servers between you and execution</span></div>
           </div>
         </section>
 
         <section className="lb-section" id="features">
           <div className="lb-inner">
-            <Reveal><div style={{ textAlign: "center" }}><span className="lb-label">Arsenal</span></div></Reveal>
-            <Reveal><h2 className="lb-title">Built for the <span className="lb-grad-text">5-minute candle</span></h2></Reveal>
-            <Reveal><p className="lb-subtitle">When price is running, you don't have room for calculators and order forms. Everything is pre-computed.</p></Reveal>
+            <Reveal><div style={{ textAlign: "center" }}><span className="lb-label">Platform</span></div></Reveal>
+            <Reveal><h2 className="lb-title">Built for the <span className="lb-grad-text">five-minute candle</span></h2></Reveal>
+            <Reveal><p className="lb-subtitle">When price is running, there is no room for calculators and order forms. Everything is pre-computed before you need it.</p></Reveal>
             <div className="lb-bento">
               <Reveal>
                 <div className="lb-card lb-card-wide">
-                  <div className="lb-ico" style={{ background: "rgba(255,138,42,.14)", color: "#FF9E2C" }}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg></div>
-                  <h3>One-tap Zerodha orders</h3>
-                  <p>BUY and SELL buttons open Kite pre-filled with symbol, quantity, target and stop-loss. Hesitation gone — conviction in one tap.</p>
+                  <div className="lb-ico"><Icon name="bolt" /></div>
+                  <span className="lb-tag">Kite Publisher</span>
+                  <h3>One-tap bracket orders</h3>
+                  <p>BUY and SELL stage the full bracket — market entry, SL-M stop and limit target — in Zerodha Kite, pre-filled with symbol, quantity and exact levels. Review once, swipe, executed, while the candle is still forming.</p>
                 </div>
               </Reveal>
-              <Reveal delay="100ms">
+              <Reveal delay="80ms">
                 <div className="lb-card">
-                  <div className="lb-ico" style={{ background: "rgba(255,138,42,.14)", color: "#FF9E2C" }}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="8" y1="6" x2="16" y2="6" /><line x1="8" y1="11" x2="8.01" y2="11" /><line x1="12" y1="11" x2="12.01" y2="11" /><line x1="16" y1="11" x2="16.01" y2="11" /><line x1="8" y1="15" x2="8.01" y2="15" /><line x1="12" y1="15" x2="12.01" y2="15" /><line x1="16" y1="15" x2="16.01" y2="15" /><line x1="8" y1="19" x2="16" y2="19" /></svg></div>
-                  <h3>Honest net P&amp;L</h3>
-                  <p>Brokerage, STT, exchange, SEBI, GST, stamp duty — deducted before you see profit. What you see is what you keep.</p>
+                  <div className="lb-ico"><Icon name="layers" /></div>
+                  <h3>Charge-aware net P&amp;L</h3>
+                  <p>Brokerage, STT, exchange transaction charges, SEBI fees, GST and stamp duty are deducted before the profit number reaches your eyes.</p>
                 </div>
               </Reveal>
-              <Reveal>
+              <Reveal delay="160ms">
                 <div className="lb-card">
-                  <div className="lb-ico" style={{ background: "rgba(254,188,46,.14)", color: "#FEBC2E" }}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg></div>
-                  <h3>Auto position sizing</h3>
-                  <p>Set capital × leverage once. Every card sizes quantity from live LTP automatically.</p>
+                  <div className="lb-ico"><Icon name="pieChart" /></div>
+                  <h3>Deterministic position sizing</h3>
+                  <p>Set capital × leverage once. Quantity recomputes from live LTP for every instrument on every tick — no spreadsheets, no slogans.</p>
                 </div>
               </Reveal>
-              <Reveal delay="100ms">
+              <Reveal delay="80ms">
                 <div className="lb-card">
-                  <div className="lb-ico" style={{ background: "rgba(255,92,108,.12)", color: "#FF5C6C" }}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg></div>
-                  <h3>Target + SL on autopilot</h3>
-                  <p>Your target% and SL% become exact prices the moment LTP updates. Override any level by tapping it.</p>
+                  <div className="lb-ico"><Icon name="activity" /></div>
+                  <h3>Levels that track the tick</h3>
+                  <p>Target and stop-loss percentages become tick-rounded prices the moment LTP updates. Override any level inline when your plan changes.</p>
                 </div>
               </Reveal>
-              <Reveal delay="200ms">
+              <Reveal delay="160ms">
                 <div className="lb-card">
-                  <div className="lb-ico" style={{ background: "rgba(167,139,250,.14)", color: "#A78BFA" }}><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg></div>
+                  <div className="lb-ico"><Icon name="playCircle" /></div>
                   <h3>Paper trading mode</h3>
-                  <p>Practice with ₹ virtual balance, full trade history and per-trade P&amp;L — zero risk, full realism.</p>
+                  <p>Rehearse with a virtual balance and full trade history — entries, exits, charges and net P&amp;L — before risking a rupee.</p>
+                </div>
+              </Reveal>
+              <Reveal delay="240ms">
+                <div className="lb-card">
+                  <div className="lb-ico"><Icon name="sliders" /></div>
+                  <h3>Terminal-grade ergonomics</h3>
+                  <p>Dense cards, tabular figures, keyboard shortcuts and a live feed status bar. Designed for a second monitor, not a phone-first demo.</p>
                 </div>
               </Reveal>
             </div>
@@ -355,7 +459,7 @@ export default function LandingPage({ onEnter }) {
           <div className="lb-inner">
             <Reveal><div style={{ textAlign: "center" }}><span className="lb-label">Try it</span></div></Reveal>
             <Reveal><h2 className="lb-title">Brokers show gross.<br />We show <span className="lb-grad-text">what you keep.</span></h2></Reveal>
-            <Reveal><p className="lb-subtitle">Drag the sliders — same charge engine as the app, running right here.</p></Reveal>
+            <Reveal><p className="lb-subtitle">Drag the sliders — the same charge engine as the terminal, running right here.</p></Reveal>
             <Calculator />
             <p className="lb-calc-note">Intraday equity charges: brokerage 0.03% (₹20 cap/leg) · STT 0.025% · exchange 0.00297% · SEBI · GST 18% · stamp 0.003%</p>
           </div>
@@ -367,25 +471,25 @@ export default function LandingPage({ onEnter }) {
             <Reveal><h2 className="lb-title">Live in <span className="lb-grad-text">60 seconds</span></h2></Reveal>
             <Reveal><p className="lb-subtitle">No account. No API keys. No setup ritual.</p></Reveal>
             <div className="lb-steps">
-              <Reveal><div className="lb-step"><div className="lb-step-num">01</div><h4>Add a symbol</h4><p>Type any NSE symbol — a trading card appears with LTP, target and SL fields. Press Enter, done.</p></div></Reveal>
-              <Reveal delay="100ms"><div className="lb-step"><div className="lb-step-num">02</div><h4>Set risk once</h4><p>Capital, leverage, target% and SL% in Settings. Quantity, levels and net P&amp;L compute themselves forever after.</p></div></Reveal>
-              <Reveal delay="200ms"><div className="lb-step"><div className="lb-step-num">03</div><h4>Tap BUY / SELL</h4><p>The order opens in Zerodha Kite, fully filled. Review, swipe, executed — while the candle is still forming.</p></div></Reveal>
+              <Reveal><div className="lb-step"><div className="lb-step-num">01</div><h4>Open the terminal</h4><p>The Nifty 50 is pre-loaded — every card shows live LTP, target, stop-loss, quantity and net P&amp;L. Press <kbd>/</kbd> to jump to search.</p></div></Reveal>
+              <Reveal delay="100ms"><div className="lb-step"><div className="lb-step-num">02</div><h4>Set risk once</h4><p>Capital, leverage, target% and stop-loss% live in Settings. Quantities, levels and P&amp;L compute themselves from then on.</p></div></Reveal>
+              <Reveal delay="200ms"><div className="lb-step"><div className="lb-step-num">03</div><h4>Tap BUY or SELL</h4><p>Kite opens with the full bracket staged. Review, swipe, executed — while the candle is still forming.</p></div></Reveal>
             </div>
           </div>
         </section>
 
-        <section className="lb-section" id="security" style={{ paddingTop: 0 }}>
+        <section className="lb-section" id="security">
           <div className="lb-inner">
             <div className="lb-sec-grid">
-              <Reveal><div className="lb-sec"><div className="lb-sec-icon" style={{ color: "#00E5A0" }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div><h4>Nothing leaves</h4><p>Symbols, prices, settings — all in your browser's localStorage.</p></div></Reveal>
-              <Reveal delay="80ms"><div className="lb-sec"><div className="lb-sec-icon" style={{ color: "#7DD3FC" }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg></div><h4>Dark-mode PWA</h4><p>Install to home screen. Offline-capable. Easy on tired eyes.</p></div></Reveal>
-              <Reveal delay="160ms"><div className="lb-sec"><div className="lb-sec-icon" style={{ color: "#FEBC2E" }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" /></svg></div><h4>TradingView jump</h4><p>One tap opens any symbol's chart — app or web, your call.</p></div></Reveal>
-              <Reveal delay="240ms"><div className="lb-sec"><div className="lb-sec-icon" style={{ color: "#A78BFA" }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg></div><h4>Paper first</h4><p>Prove the setup risk-free before risking a rupee.</p></div></Reveal>
+              <Reveal><div className="lb-sec"><div className="lb-sec-icon"><Icon name="lock" /></div><h4>Nothing leaves</h4><p>Symbols, prices, settings — all in your browser's localStorage.</p></div></Reveal>
+              <Reveal delay="80ms"><div className="lb-sec"><div className="lb-sec-icon"><Icon name="download" /></div><h4>Offline-capable</h4><p>Install to home screen. The shell works offline; prices need the network.</p></div></Reveal>
+              <Reveal delay="160ms"><div className="lb-sec"><div className="lb-sec-icon"><Icon name="shield" /></div><h4>No accounts</h4><p>No signup, no API keys, no analytics server. Orders go straight to Zerodha.</p></div></Reveal>
+              <Reveal delay="240ms"><div className="lb-sec"><div className="lb-sec-icon"><Icon name="bolt" /></div><h4>Official order flow</h4><p>Kite Publisher — the integration Zerodha documents. Credentials never touch this app.</p></div></Reveal>
             </div>
           </div>
         </section>
 
-        <section className="lb-section" id="faq" style={{ paddingTop: 0 }}>
+        <section className="lb-section" id="faq">
           <div className="lb-inner">
             <Reveal><div style={{ textAlign: "center" }}><span className="lb-label">FAQ</span></div></Reveal>
             <Reveal><h2 className="lb-title">Questions, <span className="lb-grad-text">answered</span></h2></Reveal>
@@ -393,9 +497,9 @@ export default function LandingPage({ onEnter }) {
             <div className="lb-faq-list">
               <Reveal><details className="lb-faq-item"><summary className="lb-faq-q">Is this affiliated with Zerodha?</summary><div className="lb-faq-a">No. It's an independent tool that opens orders in Zerodha Kite via the official publisher flow. Your trading account and credentials stay with Zerodha.</div></details></Reveal>
               <Reveal><details className="lb-faq-item"><summary className="lb-faq-q">Where is my data stored?</summary><div className="lb-faq-a">Only in your own browser (localStorage). There is no backend, no account, no analytics server. Clear site data and everything is gone.</div></details></Reveal>
-              <Reveal><details className="lb-faq-item"><summary className="lb-faq-q">How accurate are the charges?</summary><div className="lb-faq-a">They follow Zerodha's intraday equity schedule: 0.03% brokerage capped at ₹20 per leg, 0.025% STT, NSE transaction + IPFT, SEBI, 18% GST and stamp duty — the same engine powers the app and the calculator above.</div></details></Reveal>
+              <Reveal><details className="lb-faq-item"><summary className="lb-faq-q">How accurate are the charges?</summary><div className="lb-faq-a">They follow Zerodha's intraday equity schedule: 0.03% brokerage capped at ₹20 per leg, 0.025% STT, NSE transaction + IPFT, SEBI turnover fee, 18% GST and stamp duty — the same engine powers the terminal and the calculator above.</div></details></Reveal>
               <Reveal><details className="lb-faq-item"><summary className="lb-faq-q">Do I need a Zerodha account to try it?</summary><div className="lb-faq-a">No. Paper-trading mode gives you a virtual balance and full history with zero brokerage account required.</div></details></Reveal>
-              <Reveal><details className="lb-faq-item"><summary className="lb-faq-q">Which devices work?</summary><div className="lb-faq-a">Any modern browser on Android, iOS, Windows, macOS or Linux — and it installs as a PWA for an app-like, offline-capable experience.</div></details></Reveal>
+              <Reveal><details className="lb-faq-item"><summary className="lb-faq-q">Which devices work?</summary><div className="lb-faq-a">Any modern browser on Android, iOS, Windows, macOS or Linux — and it installs as a PWA for an app-like, offline-capable shell.</div></details></Reveal>
             </div>
           </div>
         </section>
@@ -403,9 +507,9 @@ export default function LandingPage({ onEnter }) {
         <div className="lb-cta">
           <Reveal>
             <div className="lb-cta-inner">
-              <h2>The next candle won't wait.<br />Neither should you.</h2>
+              <h2>Open the terminal.</h2>
               <p>Free forever · No signup · Installs in seconds</p>
-              <button className="lb-btn-white" onClick={onEnter}>⚡ Open Zerodha Live ▸</button>
+              <button className="lb-btn-white" onClick={onEnter}><Icon name="bolt" className="h-4 w-4" /> Launch Zerodha Live</button>
             </div>
           </Reveal>
         </div>
@@ -415,29 +519,29 @@ export default function LandingPage({ onEnter }) {
         <div className="lb-footer-inner">
           <div className="lb-footer-brand">
             <span className="lb-nav-logo"><span className="lb-nav-mark">Z</span>Zerodha Live</span>
-            <p>One-tap intraday buttons with honest, brokerage-adjusted P&amp;L. Local-first PWA.</p>
+            <p>One-tap intraday execution for the Nifty 50, with charge-aware P&amp;L. Local-first PWA.</p>
           </div>
           <div>
             <h4>Explore</h4>
             <div className="lb-footer-links">
-              <a href="#features">Features</a>
+              <a href="#features">Platform</a>
               <a href="#calculator">Profit calculator</a>
               <a href="#how">How it works</a>
               <a href="#faq">FAQ</a>
             </div>
           </div>
-          <div className="lb-sub">
-            <h4>Stay sharp</h4>
-            <p>One email when something big ships. No spam.</p>
-            <form className="lb-sub-form" onSubmit={(e) => e.preventDefault()}>
-              <input type="email" placeholder="you@email.com" required />
-              <button type="submit">Notify me</button>
-            </form>
+          <div>
+            <h4>Status</h4>
+            <div className="lb-footer-status">
+              <span className="lb-status-row"><span className="lb-status-dot" /> Price feed operational</span>
+              <span>Feed: Moneycontrol · Yahoo fallback</span>
+              <span>Storage: local-first · v1.0.0</span>
+            </div>
           </div>
         </div>
         <div className="lb-footer-bottom">
           <span>© 2026 Zerodha Live. Independent tool — not affiliated with Zerodha.</span>
-          <span>Local-first · Your data never leaves this device</span>
+          <span>Local-first · your data never leaves this device</span>
         </div>
       </footer>
     </div>

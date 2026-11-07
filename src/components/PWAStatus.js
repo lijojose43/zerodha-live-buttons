@@ -58,7 +58,7 @@ const PWAStatus = () => {
   // Update PWA theme color meta tag
   const updatePWAThemeColor = (isDark) => {
     const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-    const color = isDark ? '#0f172a' : '#f8fafc'; // slate-950 for dark, slate-50 for light
+    const color = isDark ? "#090B0F" : "#F7F8FA"; // canvas colors from design tokens
     
     if (themeColorMeta) {
       themeColorMeta.setAttribute('content', color);

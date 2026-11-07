@@ -1,6 +1,48 @@
 import { useEffect, useMemo, useState } from "react";
 import ZerodhaLivePriceButton from "./ZerodhaLivePriceButton";
+import Icon from "./icons";
 import { getBrokerage } from "../charges";
+import { getCompanyDomain, getCompanyLogoUrl } from "../companyLogos";
+
+/* Editable price cell — ₹ prefix + monospace right-aligned input. */
+function PriceCell({ value, onChange, onBlur, onKeyDown, step, min, ariaLabel }) {
+  return (
+    <span className="flex items-center font-mono text-[12px] tabular-nums text-ink">
+      <span className="mr-0.5 text-ink-3">₹</span>
+      <input
+        type="number"
+        inputMode="decimal"
+        value={value}
+        onChange={onChange}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
+        step={step}
+        min={min}
+        aria-label={ariaLabel}
+        name={ariaLabel}
+        className="w-[68px] min-w-0 bg-transparent text-right tabular-nums outline-none rounded focus:ring-1 focus:ring-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+    </span>
+  );
+}
+
+/* Static row inside the levels panel. */
+function LevelRow({ label, children, strong = false }) {
+  return (
+    <div className="flex items-center justify-between gap-2 py-[3px]">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-ink-3">
+        {label}
+      </span>
+      <span
+        className={`font-mono text-[12px] tabular-nums ${
+          strong ? "font-semibold text-ink" : "text-ink-2"
+        }`}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}
 
 export default function StockCard({
   id,
@@ -11,6 +53,8 @@ export default function StockCard({
   exchange = "NSE",
   quantity = 1,
   tickSize = 0.05,
+  // Live price pushed from App (feed). Manual edits pause the follow.
+  livePrice = null,
   // Optional: auto-calc quantity per stock using capital and leverage
   capitalPerStock,
   leverage = 5,
@@ -22,6 +66,7 @@ export default function StockCard({
   const [ltp, setLtp] = useState(0);
   const [ltpInput, setLtpInput] = useState("");
   const [ltpStatus, setLtpStatus] = useState("manual"); // manual | ok | error
+  const [followLive, setFollowLive] = useState(true);
 
   // Custom target and SL prices (null means use calculated values)
   const [customBuyTarget, setCustomBuyTarget] = useState(null);
@@ -37,7 +82,7 @@ export default function StockCard({
     return Math.round(p / tickSize) * tickSize;
   };
 
-  // Upstox instrument_key used for API requests. Prefer explicit prop; fallback to `symbol`.
+  // Instrument key used for API requests. Prefer explicit prop; fallback to `symbol`.
   // Supports forms like 'NSE_EQ|RELIANCE' or 'NSE_EQ:RELIANCE'.
   const instrumentKey = useMemo(() => {
     const base = instrumentKeyProp ?? symbol;
@@ -46,7 +91,7 @@ export default function StockCard({
       .trim();
   }, [instrumentKeyProp, symbol]);
 
-  // Derive a trading symbol for Zerodha Publisher buttons from the instrument_key
+  // Derive a trading symbol from the instrument_key
   // Take the part after '|' or ':' if present, else the whole string
   const tradingSymbol = useMemo(() => {
     const raw = String(instrumentKey || symbol || "").trim();
@@ -63,7 +108,6 @@ export default function StockCard({
     setNameInput(String(symbol || ""));
   }, [symbol]);
 
-  // Live price fetching is disabled (Upstox removed). Manual entry enabled.
   // Load saved LTP and custom prices from localStorage on instrument change
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -105,6 +149,18 @@ export default function StockCard({
     }
     setLtpStatus("manual");
   }, [instrumentKey]);
+
+  // Follow the live feed unless the user typed a manual price.
+  useEffect(() => {
+    if (followLive && Number.isFinite(livePrice) && livePrice > 0) {
+      setLtp(livePrice);
+      setLtpInput(String(livePrice));
+      setLtpStatus("ok");
+      try {
+        window.localStorage.setItem(`ltp:${instrumentKey}`, String(livePrice));
+      } catch {}
+    }
+  }, [livePrice, followLive, instrumentKey]);
 
   // Persist LTP on blur of input instead of every change
   const autoQty = useMemo(
@@ -186,11 +242,15 @@ export default function StockCard({
       typeof navigator !== "undefined" ? navigator.userAgent : ""
     ).toLowerCase();
     const isMobile = /iphone|ipad|ipod|android/.test(ua);
-    // Prefer opening the TradingView app (deep link). If it fails, fallback in the same tab.
+    if (!isMobile) {
+      // Desktop: open the web chart in a NEW tab.
+      window.open(web, "_blank", "noopener,noreferrer");
+      return;
+    }
+    // Mobile: prefer the TradingView app (deep link), fall back to web in a new tab.
     window.location.href = deep;
     setTimeout(() => {
-      // Fallback to web in the SAME tab (no new tab)
-      window.location.href = web;
+      window.open(web, "_blank", "noopener,noreferrer");
     }, 800);
   };
 
@@ -204,15 +264,49 @@ export default function StockCard({
       ? (ltp - sellTarget) / (sellSL - ltp)
       : 0;
 
+  // Real company logo (Clearbit) with first-letter fallback.
+  const logoDomain = getCompanyDomain(tradingSymbol);
+  const logoUrl = getCompanyLogoUrl(tradingSymbol, 128);
+  const [logoOk, setLogoOk] = useState(true);
+  useEffect(() => {
+    setLogoOk(true);
+  }, [logoDomain]);
+
+  const numField = (setInput, setValue) => (e) => {
+    const inputValue = e.target.value;
+    // Allow partial inputs including trailing dots and incomplete decimals
+    const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
+    if (regex.test(inputValue)) {
+      setInput(inputValue);
+      const val = Number(inputValue);
+      setValue(Number.isFinite(val) && val > 0 ? val : null);
+    }
+  };
+
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-white text-slate-900 dark:bg-slate-900 dark:text-white p-4 shadow-lg ring-1 ring-slate-200 dark:ring-slate-800 w-full transition-shadow hover:shadow-xl">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="self-start flex items-center gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 text-sm font-extrabold text-white shadow-md">
-            {String(symbol || "?").charAt(0).toUpperCase()}
-          </div>
-          <div>
-          <div className="flex items-center gap-2">
+    <div className="flex h-full flex-col rounded-lg bg-surface ring-1 ring-line transition-colors duration-150 hover:ring-line-2">
+      {/* ---------- header: identity + LTP ---------- */}
+      <div className="flex items-start justify-between gap-3 border-b border-line p-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {logoUrl && logoOk ? (
+            <div className="relative h-7 w-7 shrink-0">
+              <div className="absolute inset-0 flex items-center justify-center rounded-md bg-surface-2 text-[11px] font-bold text-ink-2 ring-1 ring-line">
+                {String(symbol || "?").charAt(0).toUpperCase()}
+              </div>
+              <img
+                src={logoUrl}
+                alt={`${tradingSymbol} logo`}
+                loading="lazy"
+                onError={() => setLogoOk(false)}
+                className="absolute inset-0 h-7 w-7 rounded-md bg-surface object-contain p-0.5 ring-1 ring-line"
+              />
+            </div>
+          ) : (
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[11px] font-bold text-ink-2 ring-1 ring-line">
+              {String(symbol || "?").charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0">
             <input
               type="text"
               value={nameInput}
@@ -231,41 +325,42 @@ export default function StockCard({
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
               placeholder="SYMBOL"
-              className="text-left text-lg font-semibold tracking-wide bg-transparent border-b border-transparent focus:border-slate-400 outline-none"
+              aria-label="Instrument symbol"
+              name="symbol"
+              className="w-full min-w-0 rounded border border-transparent bg-transparent px-0.5 text-[14px] font-bold uppercase tracking-wide text-ink outline-none transition-colors hover:border-line-2 focus:border-accent/50"
             />
-          </div>
-          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-            <span>{exchange}</span>
-            <button
-              type="button"
-              onClick={openTradingView}
-              className="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
-              title="Open in TradingView"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-3 w-3"
+            <div className="mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3">
+              <span>{exchange} · EQ</span>
+              <span className="h-2.5 w-px bg-line-2" />
+              <button
+                type="button"
+                onClick={openTradingView}
+                className="rounded p-0.5 transition-colors hover:bg-surface-2 hover:text-ink-2"
+                title="Open in TradingView"
+                aria-label="Open in TradingView"
               >
-                <path d="M14 3h7v7" />
-                <path d="M10 14 21 3" />
-                <path d="M21 14v7h-7" />
-                <path d="M3 10V3h7" />
-              </svg>
-            </button>
-          </div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3 w-3"
+                >
+                  <path d="M14 3h7v7" />
+                  <path d="M10 14 21 3" />
+                  <path d="M21 14v7h-7" />
+                  <path d="M3 10V3h7" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-        <div className="text-right self-start justify-self-end">
-          <div className="relative flex items-center">
-            <span className="text-2xl font-mono text-slate-600 dark:text-slate-400 mr-1">
-              ₹
-            </span>
+        <div className="shrink-0 text-right">
+          <div className="flex items-center justify-end">
+            <span className="mr-1 font-mono text-[13px] text-ink-3">₹</span>
             <input
               type="number"
               inputMode="decimal"
@@ -279,6 +374,7 @@ export default function StockCard({
                   const val = Number(inputValue);
                   setLtp(Number.isFinite(val) ? val : 0);
                   setLtpStatus("manual");
+                  setFollowLive(false);
                 }
               }}
               onBlur={(e) => {
@@ -304,302 +400,257 @@ export default function StockCard({
               step={tickSize || 0.05}
               min="0"
               placeholder="0.00"
-              className="block w-24 h-8 leading-8 p-0 text-right text-2xl font-mono bg-transparent appearance-none focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+              aria-label="Last traded price"
+              name="ltp"
+              className="w-24 bg-transparent text-right text-lg font-bold tabular-nums text-ink outline-none rounded focus:ring-1 focus:ring-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
-          <div className="text-[11px] text-slate-500 dark:text-slate-400">
-            {ltpStatus === "manual" && "Manual price"}
-            {ltpStatus === "ok" && "Live price"}
-            {ltpStatus === "error" && "Error fetching LTP"}
+          <div className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.1em]">
+            {ltpStatus === "ok" && (
+              <span className="inline-flex items-center gap-1 text-pos">
+                <span className="h-1.5 w-1.5 rounded-full bg-pos" />
+                Live
+              </span>
+            )}
+            {ltpStatus === "manual" &&
+              (Number.isFinite(livePrice) && livePrice > 0 ? (
+                <button
+                  onClick={() => setFollowLive(true)}
+                  className="rounded text-ink-3 underline decoration-dotted underline-offset-2 transition-colors hover:text-ink-2"
+                  title="Resume live price"
+                >
+                  Manual · resume live
+                </button>
+              ) : (
+                <span className="text-ink-3">Manual entry</span>
+              ))}
+            {ltpStatus === "error" && (
+              <span className="text-neg">Feed error</span>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
-        <div className="rounded-xl bg-gradient-to-b from-emerald-50 to-slate-100 dark:from-emerald-950/40 dark:to-slate-800 p-3 ring-1 ring-emerald-200/60 dark:ring-emerald-900/40">
-          <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-300">
-            ▲ Long
+      {/* ---------- levels: long / short ---------- */}
+      <div className="grid grid-cols-2 divide-x divide-line">
+        {/* LONG */}
+        <div className="p-3">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-pos">
+            <Icon name="arrowUp" className="h-3 w-3" /> Long
           </div>
-          <div className="flex justify-between text-base">
-            <span className="text-slate-600 dark:text-slate-400">TA</span>
-            <div className="relative flex items-center">
-              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
-                ₹
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={
-                  customBuyTargetInput ||
-                  (customBuyTarget === null && buyTarget > 0
-                    ? buyTarget.toFixed(2)
-                    : "")
-                }
-                onChange={(e) => {
-                  const inputValue = e.target.value;
-                  const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
-                  if (regex.test(inputValue)) {
-                    setCustomBuyTargetInput(inputValue);
-                    const val = Number(inputValue);
-                    setCustomBuyTarget(
-                      Number.isFinite(val) && val > 0 ? val : null
+          <LevelRow label="Target">
+            <PriceCell
+              value={
+                customBuyTargetInput ||
+                (customBuyTarget === null && buyTarget > 0
+                  ? buyTarget.toFixed(2)
+                  : "")
+              }
+              onChange={numField(setCustomBuyTargetInput, setCustomBuyTarget)}
+              onBlur={(e) => {
+                if (typeof window !== "undefined") {
+                  const val = Number(e.currentTarget.value);
+                  if (Number.isFinite(val) && val > 0) {
+                    setCustomBuyTarget(val);
+                    setCustomBuyTargetInput(String(val));
+                    window.localStorage.setItem(
+                      `buyTarget:${instrumentKey}`,
+                      String(val)
                     );
+                  } else {
+                    window.localStorage.removeItem(`buyTarget:${instrumentKey}`);
                   }
-                }}
-                onBlur={(e) => {
-                  if (typeof window !== "undefined") {
-                    const val = Number(e.currentTarget.value);
-                    if (Number.isFinite(val) && val > 0) {
-                      setCustomBuyTarget(val);
-                      setCustomBuyTargetInput(String(val));
-                      window.localStorage.setItem(
-                        `buyTarget:${instrumentKey}`,
-                        String(val)
-                      );
-                    } else {
-                      window.localStorage.removeItem(`buyTarget:${instrumentKey}`);
-                    }
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.currentTarget.blur();
-                  }
-                }}
-                step={tickSize || 0.05}
-                min="0"
-                placeholder="0.00"
-                className="w-20 min-w-0 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-              />
-            </div>
-          </div>
-          <div className="flex justify-between text-base">
-            <span className="text-slate-600 dark:text-slate-400">SL</span>
-            <div className="relative flex items-center">
-              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
-                ₹
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={
-                  customBuySLInput ||
-                  (customBuySL === null && buySL > 0 ? buySL.toFixed(2) : "")
                 }
-                onChange={(e) => {
-                  const inputValue = e.target.value;
-                  const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
-                  if (regex.test(inputValue)) {
-                    setCustomBuySLInput(inputValue);
-                    const val = Number(inputValue);
-                    setCustomBuySL(
-                      Number.isFinite(val) && val > 0 ? val : null
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              step={tickSize || 0.05}
+              min="0"
+              ariaLabel="Long target price"
+            />
+          </LevelRow>
+          <LevelRow label="Stop loss">
+            <PriceCell
+              value={
+                customBuySLInput ||
+                (customBuySL === null && buySL > 0 ? buySL.toFixed(2) : "")
+              }
+              onChange={numField(setCustomBuySLInput, setCustomBuySL)}
+              onBlur={(e) => {
+                if (typeof window !== "undefined") {
+                  const val = Number(e.currentTarget.value);
+                  if (Number.isFinite(val) && val > 0) {
+                    setCustomBuySL(val);
+                    setCustomBuySLInput(String(val));
+                    window.localStorage.setItem(
+                      `buySL:${instrumentKey}`,
+                      String(val)
                     );
+                  } else {
+                    window.localStorage.removeItem(`buySL:${instrumentKey}`);
                   }
-                }}
-                onBlur={(e) => {
-                  if (typeof window !== "undefined") {
-                    const val = Number(e.currentTarget.value);
-                    if (Number.isFinite(val) && val > 0) {
-                      setCustomBuySL(val);
-                      setCustomBuySLInput(String(val));
-                      window.localStorage.setItem(
-                        `buySL:${instrumentKey}`,
-                        String(val)
-                      );
-                    } else {
-                      window.localStorage.removeItem(`buySL:${instrumentKey}`);
-                    }
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.currentTarget.blur();
-                  }
-                }}
-                step={tickSize || 0.05}
-                min="0"
-                placeholder="0.00"
-                className="w-20 min-w-0 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-              />
-            </div>
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              step={tickSize || 0.05}
+              min="0"
+              ariaLabel="Long stop loss price"
+            />
+          </LevelRow>
+          <LevelRow label="Qty" strong>
+            {effectiveQty}
+          </LevelRow>
+          <LevelRow label="R:R" strong>
+            {buyRR > 0 ? `${buyRR.toFixed(2)} : 1` : "—"}
+          </LevelRow>
+          <div className="mt-1.5 flex items-center justify-between rounded bg-pos/8 px-2 py-1 text-[11px] font-semibold text-pos">
+            <span className="uppercase tracking-wide">Profit</span>
+            <span className="font-mono tabular-nums">
+              ₹{potentialBuyProfit.toFixed(2)}
+            </span>
           </div>
-          <div className="flex justify-between text-base text-slate-600 dark:text-slate-400">
-            <span>Qty</span>
-            <span className="font-semibold text-slate-900 dark:text-white">{effectiveQty}</span>
-          </div>
-          <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
-            <span>R:R</span>
-            <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">{buyRR > 0 ? buyRR.toFixed(2) : "—"}</span>
-          </div>
-          <div className="mt-2 flex justify-between gap-2 rounded-md bg-emerald-500/10 px-2 py-1 text-base font-medium text-green-600 dark:text-green-300">
-            <span className="shrink-0">Profit</span>
-            <span className="truncate tabular-nums">₹{potentialBuyProfit.toFixed(2)}</span>
-          </div>
-          <div className="mt-1 flex justify-between gap-2 rounded-md bg-red-500/10 px-2 py-1 text-base font-medium text-red-600 dark:text-red-300">
-            <span className="shrink-0">Loss</span>
-            <span className="truncate tabular-nums">₹{potentialBuyLoss.toFixed(2)}</span>
+          <div className="mt-1 flex items-center justify-between rounded bg-neg/8 px-2 py-1 text-[11px] font-semibold text-neg">
+            <span className="uppercase tracking-wide">Loss</span>
+            <span className="font-mono tabular-nums">
+              ₹{potentialBuyLoss.toFixed(2)}
+            </span>
           </div>
         </div>
-        <div className="rounded-xl bg-gradient-to-b from-rose-50 to-slate-100 dark:from-rose-950/40 dark:to-slate-800 p-3 ring-1 ring-rose-200/60 dark:ring-rose-900/40">
-          <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-300">
-            ▼ Short
+
+        {/* SHORT */}
+        <div className="p-3">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-neg">
+            <Icon name="arrowDown" className="h-3 w-3" /> Short
           </div>
-          <div className="flex justify-between text-base">
-            <span className="text-slate-600 dark:text-slate-400">SL</span>
-            <div className="relative flex items-center">
-              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
-                ₹
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={
-                  customSellSLInput ||
-                  (customSellSL === null && sellSL > 0 ? sellSL.toFixed(2) : "")
-                }
-                onChange={(e) => {
-                  const inputValue = e.target.value;
-                  const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
-                  if (regex.test(inputValue)) {
-                    setCustomSellSLInput(inputValue);
-                    const val = Number(inputValue);
-                    setCustomSellSL(
-                      Number.isFinite(val) && val > 0 ? val : null
+          <LevelRow label="Target">
+            <PriceCell
+              value={
+                customSellTargetInput ||
+                (customSellTarget === null && sellTarget > 0
+                  ? sellTarget.toFixed(2)
+                  : "")
+              }
+              onChange={numField(setCustomSellTargetInput, setCustomSellTarget)}
+              onBlur={(e) => {
+                if (typeof window !== "undefined") {
+                  const val = Number(e.currentTarget.value);
+                  if (Number.isFinite(val) && val > 0) {
+                    setCustomSellTarget(val);
+                    setCustomSellTargetInput(String(val));
+                    window.localStorage.setItem(
+                      `sellTarget:${instrumentKey}`,
+                      String(val)
                     );
+                  } else {
+                    window.localStorage.removeItem(`sellTarget:${instrumentKey}`);
                   }
-                }}
-                onBlur={(e) => {
-                  if (typeof window !== "undefined") {
-                    const val = Number(e.currentTarget.value);
-                    if (Number.isFinite(val) && val > 0) {
-                      setCustomSellSL(val);
-                      setCustomSellSLInput(String(val));
-                      window.localStorage.setItem(
-                        `sellSL:${instrumentKey}`,
-                        String(val)
-                      );
-                    } else {
-                      window.localStorage.removeItem(`sellSL:${instrumentKey}`);
-                    }
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.currentTarget.blur();
-                  }
-                }}
-                step={tickSize || 0.05}
-                min="0"
-                placeholder="0.00"
-                className="w-20 min-w-0 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-              />
-            </div>
-          </div>
-          <div className="flex justify-between text-base">
-            <span className="text-slate-600 dark:text-slate-400">TA</span>
-            <div className="relative flex items-center">
-              <span className="text-base font-mono text-slate-600 dark:text-slate-400 mr-1">
-                ₹
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={
-                  customSellTargetInput ||
-                  (customSellTarget === null && sellTarget > 0
-                    ? sellTarget.toFixed(2)
-                    : "")
                 }
-                onChange={(e) => {
-                  const inputValue = e.target.value;
-                  const regex = /^\d{0,5}(\.\d{0,2})?$|^\d{0,5}\.$|^$/;
-                  if (regex.test(inputValue)) {
-                    setCustomSellTargetInput(inputValue);
-                    const val = Number(inputValue);
-                    setCustomSellTarget(
-                      Number.isFinite(val) && val > 0 ? val : null
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              step={tickSize || 0.05}
+              min="0"
+              ariaLabel="Short target price"
+            />
+          </LevelRow>
+          <LevelRow label="Stop loss">
+            <PriceCell
+              value={
+                customSellSLInput ||
+                (customSellSL === null && sellSL > 0 ? sellSL.toFixed(2) : "")
+              }
+              onChange={numField(setCustomSellSLInput, setCustomSellSL)}
+              onBlur={(e) => {
+                if (typeof window !== "undefined") {
+                  const val = Number(e.currentTarget.value);
+                  if (Number.isFinite(val) && val > 0) {
+                    setCustomSellSL(val);
+                    setCustomSellSLInput(String(val));
+                    window.localStorage.setItem(
+                      `sellSL:${instrumentKey}`,
+                      String(val)
                     );
+                  } else {
+                    window.localStorage.removeItem(`sellSL:${instrumentKey}`);
                   }
-                }}
-                onBlur={(e) => {
-                  if (typeof window !== "undefined") {
-                    const val = Number(e.currentTarget.value);
-                    if (Number.isFinite(val) && val > 0) {
-                      setCustomSellTarget(val);
-                      setCustomSellTargetInput(String(val));
-                      window.localStorage.setItem(
-                        `sellTarget:${instrumentKey}`,
-                        String(val)
-                      );
-                    } else {
-                      window.localStorage.removeItem(`sellTarget:${instrumentKey}`);
-                    }
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.currentTarget.blur();
-                  }
-                }}
-                step={tickSize || 0.05}
-                min="0"
-                placeholder="0.00"
-                className="w-20 min-w-0 text-right text-base font-mono bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-              />
-            </div>
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              step={tickSize || 0.05}
+              min="0"
+              ariaLabel="Short stop loss price"
+            />
+          </LevelRow>
+          <LevelRow label="Qty" strong>
+            {effectiveQty}
+          </LevelRow>
+          <LevelRow label="R:R" strong>
+            {sellRR > 0 ? `${sellRR.toFixed(2)} : 1` : "—"}
+          </LevelRow>
+          <div className="mt-1.5 flex items-center justify-between rounded bg-pos/8 px-2 py-1 text-[11px] font-semibold text-pos">
+            <span className="uppercase tracking-wide">Profit</span>
+            <span className="font-mono tabular-nums">
+              ₹{potentialSellProfit.toFixed(2)}
+            </span>
           </div>
-          <div className="flex justify-between text-base text-slate-600 dark:text-slate-400">
-            <span>Qty</span>
-            <span className="font-semibold text-slate-900 dark:text-white">{effectiveQty}</span>
-          </div>
-          <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-1">
-            <span>R:R</span>
-            <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">{sellRR > 0 ? sellRR.toFixed(2) : "—"}</span>
-          </div>
-          <div className="mt-2 flex justify-between gap-2 rounded-md bg-emerald-500/10 px-2 py-1 text-base font-medium text-green-600 dark:text-green-300">
-            <span className="shrink-0">Profit</span>
-            <span className="truncate tabular-nums">₹{potentialSellProfit.toFixed(2)}</span>
-          </div>
-          <div className="mt-1 flex justify-between gap-2 rounded-md bg-red-500/10 px-2 py-1 text-base font-medium text-red-600 dark:text-red-300">
-            <span className="shrink-0">Loss</span>
-            <span className="truncate tabular-nums">₹{potentialSellLoss.toFixed(2)}</span>
+          <div className="mt-1 flex items-center justify-between rounded bg-neg/8 px-2 py-1 text-[11px] font-semibold text-neg">
+            <span className="uppercase tracking-wide">Loss</span>
+            <span className="font-mono tabular-nums">
+              ₹{potentialSellLoss.toFixed(2)}
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="mt-3 text-center text-[11px] tracking-wide text-slate-400 dark:text-slate-500">
-        Net after all 6 Zerodha charge heads · R:R updates live
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <ZerodhaLivePriceButton
-          symbol={symbol}
-          action="BUY"
-          quantity={effectiveQty}
-          exchange={exchange}
-          tickSize={tickSize}
-          currentPrice={ltp}
-          targetPct={targetPct}
-          slPct={slPct}
-          overrideTargetPrice={buyTarget}
-          overrideSLTrigger={buySL}
-          compact
-          className="justify-center w-full"
-        />
-        <ZerodhaLivePriceButton
-          symbol={symbol}
-          action="SELL"
-          quantity={effectiveQty}
-          exchange={exchange}
-          tickSize={tickSize}
-          currentPrice={ltp}
-          targetPct={targetPct}
-          slPct={slPct}
-          overrideTargetPrice={sellTarget}
-          overrideSLTrigger={sellSL}
-          compact
-          className="justify-center w-full"
-        />
+      {/* ---------- execution ---------- */}
+      <div className="mt-auto border-t border-line p-3">
+        <div className="grid grid-cols-2 gap-2">
+          <ZerodhaLivePriceButton
+            symbol={symbol}
+            action="BUY"
+            quantity={effectiveQty}
+            exchange={exchange}
+            tickSize={tickSize}
+            currentPrice={ltp}
+            targetPct={targetPct}
+            slPct={slPct}
+            overrideTargetPrice={buyTarget}
+            overrideSLTrigger={buySL}
+            compact
+            className="justify-center w-full"
+          />
+          <ZerodhaLivePriceButton
+            symbol={symbol}
+            action="SELL"
+            quantity={effectiveQty}
+            exchange={exchange}
+            tickSize={tickSize}
+            currentPrice={ltp}
+            targetPct={targetPct}
+            slPct={slPct}
+            overrideTargetPrice={sellTarget}
+            overrideSLTrigger={sellSL}
+            compact
+            className="justify-center w-full"
+          />
+        </div>
+        <p className="mt-2 text-center text-[10px] tracking-wide text-ink-3">
+          Net of all 6 NSE charge heads · R:R recalculates on every tick
+        </p>
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
-const CACHE_NAME = 'zerodha-live-v2';
+const CACHE_NAME = 'zerodha-live-v5';
 const urlsToCache = [
   '/',
+  '/app/',
+  '/app',
   '/static/js/bundle.js',
   '/static/css/main.css',
   '/manifest.json'
@@ -29,6 +31,28 @@ self.addEventListener('fetch', (event) => {
   // Never proxy cross-origin traffic through app-shell fallbacks.
   // This avoids interfering with third-party auth/login flows.
   if (requestUrl.origin !== self.location.origin) return;
+
+  // Navigations (the HTML shell): network-first so a fresh deploy is picked
+  // up immediately, with the cached shell as the offline fallback.
+  // Static assets are content-hashed, so cache-first is safe for them.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(event.request).then(
+            (cached) => cached || caches.match('/')
+          )
+        )
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request)
